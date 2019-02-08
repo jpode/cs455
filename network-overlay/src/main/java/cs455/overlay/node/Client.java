@@ -3,6 +3,8 @@ package cs455.overlay.node;
 import java.io.*;
 import java.net.*;
 
+import cs455.overlay.wireformats.RegisterRequest;
+
 public class Client {
 	
 	public static Socket connect(String addr, Integer port) {
@@ -63,6 +65,17 @@ public class Client {
 				inputStream = new DataInputStream(cs.getInputStream());
 
 				
+				//Attempt to register
+				RegisterRequest rq = new RegisterRequest(cs.getInetAddress().toString().substring(1), cs.getLocalPort());
+				
+				byte[] packet = rq.getPacket();
+				Integer packet_length = packet.length;
+				//Our self-inflicted protocol says we send the length first
+				outputStream.writeInt(packet_length);
+				//Then we can send the message
+				outputStream.write(packet, 0, packet_length);
+				
+				
 				Integer msgLength = 0;
 				//Try to read an integer from our input stream. This will block if there is nothing.
 				System.out.println("Waiting for message...");
@@ -81,22 +94,16 @@ public class Client {
 				// Whereas .readFully(...) will read exactly msgLength number of bytes. 
 	
 				System.out.println("Received Message: " + new String(incomingMessage));
-	
-				/*
-				//Now, let's respond.
-				byte[] msgToServer = "CS455".getBytes();
-				Integer msgToServerLength = msgToServer.length;
-				//Our self-inflicted protocol says we send the length first
-				outputStream.writeInt(msgToServerLength);
-				//Then we can send the message
-				outputStream.write(msgToServer, 0, msgToServerLength);
+				
+				
+
 	
 				//Close streams and then sockets
 				inputStream.close();
 				outputStream.close();
 				cs.close();
 				return;
-				*/
+				
 			} catch(IOException e) {
 				System.out.println("Client::main::talking_to_the_server:: " + e);
 			}

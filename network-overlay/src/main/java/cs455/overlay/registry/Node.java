@@ -9,42 +9,59 @@ import java.net.Socket;
 public class Node {
 	private String ip_addr;
 	private Integer port;
-	private Integer MAX_CONNECTIONS;
 	private Socket self_socket;
-	private Node[] connections;
+	private Node[] connected_nodes;
+	private boolean overlay_constructed; //True if the overlay is being/has been constructed
+	private int connection_counter;
 	
-	
-	public Node(String ip, Integer p, Integer n, Socket socket) {
+	public Node(String ip, Integer p, Socket socket) {
 		ip_addr = ip;
 		port = p;
-		MAX_CONNECTIONS = n;
 		self_socket = socket;
-		connections = new Node[MAX_CONNECTIONS];
+		overlay_constructed = false;
+		connection_counter = 0;
 	}
 
+	public void setMaxConnections(int num_connections) {
+		connected_nodes = new Node[num_connections];
+		overlay_constructed = true;
+	}
+	
 	//Indicates a bidirectional connection between this node and the parameter node. 
 	//The Node class does not handle creating the other part of the bidirectional connection, that should be done by the registry. 
 	//Returns true if there is room in the connections array, otherwise returns false
 	public boolean establishConnection(Node node) {
-		for(int i = 0; i < connections.length; i++) {
-			if(connections[i] != null) {
-				connections[i] = node;
-				return true;
+		if(overlay_constructed && connection_counter < connected_nodes.length) {
+			for(int i = 0; i < connected_nodes.length; i++) {
+
+				if(connected_nodes[i] == null) {	
+					connected_nodes[i] = node;
+					connection_counter++;
+					return true;
+				} else if(connected_nodes[i].equals(node)) { //Connection already exists
+					return false;
+				}  
 			}
 		}
 		return false;
 	}
 	
 	public Node[] getConnections() {
-		return connections;
+		return connected_nodes;
+	}
+	
+	public int getNumConnections() {
+		return connection_counter;
 	}
 	
 	//Remove a node from this node's connection list
 	public boolean disconnectNode(Node node) {
-		for(int i = 0; i < connections.length; i++) {
-			if(connections[i].equals(node)) {
-				connections[i] = null;
-				return true;
+		if(overlay_constructed) {
+			for(int i = 0; i < connected_nodes.length; i++) {
+				if(connected_nodes[i].equals(node)) {
+					connected_nodes[i] = null;
+					return true;
+				}
 			}
 		}
 		return false;
@@ -63,8 +80,10 @@ public class Node {
 			e.printStackTrace();
 		}
 		
-		for(int i = 0; i < connections.length; i++) {
-			connections[i] = null;
+		if(overlay_constructed) {
+			for(int i = 0; i < connected_nodes.length; i++) {
+				connected_nodes[i] = null;
+			}
 		}
 	}
 
@@ -89,5 +108,9 @@ public class Node {
 		} else if (!port.equals(other.port))
 			return false;
 		return true;
+	}
+	
+	public String toString() {
+		return ip_addr + ":" + port;
 	}
 }

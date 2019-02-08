@@ -8,10 +8,9 @@ public class Server {
 
 	private boolean open;
 	private ServerSocket ss;
-	private Registry reg;
-	private Socket test_socket;
+	private Socket test_socket; //Used to check if a port is available
 	
-	public Server(Registry reg, Integer port, Integer num_connections) {
+	public Server(Integer port, Integer num_connections) {
 		//Cycle through ports until an empty one is found
 		while(port < 66000) {
 			try {
@@ -30,7 +29,6 @@ public class Server {
 			}
 		}
 		
-		this.reg = reg;
 		this.open = false;
 	}
 	
@@ -57,19 +55,45 @@ public class Server {
 							
 							//If we get here we are no longer blocking, so we accepted a new connection
 							System.out.println("Connection received: " + cs.getRemoteSocketAddress().toString());
-
-							if(reg.register(new Node(cs.getRemoteSocketAddress().toString(), cs.getPort(), reg.getNumConnections(), cs)) == 0) {
-								System.out.println("Registration successful.");
-							} else {
-								System.out.println("Registration NOT successful.");
-							}
 							
-			
 							//We have yet to block again, so we can handle this connection however we would like to.
-							//For now, let's send a message and then wait for the response.
 							DataInputStream inputStream = new DataInputStream(cs.getInputStream());
 							DataOutputStream outputStream = new DataOutputStream(cs.getOutputStream());
+							
+							//Wait for a message
+							Integer msgLength = 0;
+							//Try to read an integer from our input stream. This will block if there is nothing.
+							msgLength = inputStream.readInt();
 			
+							//If we got here that means there was an integer to 
+							// read and we have the length of the rest of the next message.			
+							//Now try to read the incoming message.
+							byte[] incomingMessage = new byte[msgLength];
+							inputStream.readFully(incomingMessage, 0, msgLength);
+			
+							//You could have used .read(byte[] incomingMessage), however this will read 
+							// *potentially* incomingMessage.length bytes, maybe less.
+							//Whereas .readFully(...) will read exactly msgLength number of bytes. 
+							
+							System.out.println("Received Message: ");
+							System.out.println(new String(incomingMessage));
+							System.out.println();
+							
+							byte[] response = Registry.getInstance().handlePacket(incomingMessage, cs);
+							
+							if(response != null) {
+								//Send response indicating registration status 
+								Integer response_length = response.length;
+				
+								//Our self-inflicted protocol says we send the length first
+								outputStream.writeInt(response_length);
+								//Then we can send the message
+								outputStream.write(response, 0, response_length);
+							} else {
+								System.out.println("Message handling failure.");
+							}
+							
+							/*
 							//Let's send a message to our new friend
 							byte[] msgToClient = "What class is this video for?".getBytes();
 							Integer msgToClientLength = msgToClient.length;
@@ -78,41 +102,11 @@ public class Server {
 							outputStream.writeInt(msgToClientLength);
 							//Then we can send the message
 							outputStream.write(msgToClient, 0, msgToClientLength);
-			
-							/*
-							//Now we wait for their response.
-							Integer msgLength = 0;
-							//Try to read an integer from our input stream. This will block if there is nothing.
-							msgLength = inputStream.readInt();
-			
-							//If we got here that means there was an integer to 
-							// read and we have the length of the rest of the next message.
-							System.out.println("Received a message length of: " + msgLength);
-			
-							//Try to read the incoming message.
-							byte[] incomingMessage = new byte[msgLength];
-							inputStream.readFully(incomingMessage, 0, msgLength);
-			
-							//You could have used .read(byte[] incomingMessage), however this will read 
-							// *potentially* incomingMessage.length bytes, maybe less.
-							//Whereas .readFully(...) will read exactly msgLength number of bytes. 
-			
-							System.out.println("Received Message: " + new String(incomingMessage));
-							
+							*/
 							//Close streams and then socket
 							inputStream.close();
 							outputStream.close();
 							cs.close();
-							*/
-							
-							//Let's send another message to our new friend
-							byte[] msgToClient2 = "Cs455?".getBytes();
-							Integer msgToClientLength2 = msgToClient2.length;
-			
-							//Our self-inflicted protocol says we send the length first
-							outputStream.writeInt(msgToClientLength2);
-							//Then we can send the message
-							outputStream.write(msgToClient2, 0, msgToClientLength2);
 						}
 						
 						if(!open) {
