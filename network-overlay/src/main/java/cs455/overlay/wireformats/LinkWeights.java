@@ -1,31 +1,40 @@
 package cs455.overlay.wireformats;
 
-public class LinkWeights {
-	final int MESSAGE_TYPE = 5;
-	int num_links;
-	String[] link_weights;
+import java.util.ArrayList;
+
+public class LinkWeights implements Event{
+	private final int MESSAGE_TYPE = 5;
+	private int num_links;
+	private String[] link_weights;
 	private int array_counter;
 	
 	public LinkWeights(int links) {
-		num_links = links;
 		link_weights = new String[links];
+		num_links = links;
 		array_counter = 0;
 	}
 	
-	//Returns false if weight has already been added for all nodes, otherwise adds the weight and returns true
-	public boolean addWeight(String weight) {
+	public int getType() {
+		return MESSAGE_TYPE;
+	}
+	
+	public byte[] getBytes() {
+		return new String(MESSAGE_TYPE + "\n" + num_links + "\n" + getLinkWeights()).getBytes();
+	}
+	
+	//Add a link and its weight to the list
+	public void addWeight(String weight) {
 		if(array_counter < num_links) {
 			link_weights[array_counter] = weight;
 			array_counter++;
-			return true;
 		}
-		return false;
 	}
 	
-	public String getLinkWeights() {
+	//Create a string of all the weights
+	private String getLinkWeights() {
 		String weights = "";
 		
-		for(int i = 0; i < array_counter; i++) {
+		for(int i = 0; i < num_links; i++) {
 			weights += link_weights[i] + "\n";
 		}
 		

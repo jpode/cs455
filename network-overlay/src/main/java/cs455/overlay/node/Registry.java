@@ -1,4 +1,5 @@
-package cs455.overlay.registry;
+package cs455.overlay.node;
+
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -6,6 +7,9 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 
+import cs455.overlay.transport.TCPServerThread;
+import cs455.overlay.util.RegistryInputThread;
+import cs455.overlay.util.RegistryMessageThread;
 import cs455.overlay.wireformats.MessagingNodesList;
 import cs455.overlay.wireformats.RegisterResponse;;
 
@@ -20,7 +24,7 @@ import cs455.overlay.wireformats.RegisterResponse;;
 public class Registry {
 	//Static instance variable to follow singleton pattern
 	private static Registry instance;
-	//Number of connections that each message node will have in the overlay.
+	static //Number of connections that each message node will have in the overlay.
 	Integer NUM_CONNECTIONS;
 	//Registry data structure. MessageNodes contain a list of connections
 	ArrayList<Node> node_registry;
@@ -28,8 +32,13 @@ public class Registry {
 	
 	//Private constructor to follow singleton pattern and ensure that only one registry class exists
 	private Registry() {
+		NUM_CONNECTIONS = 10;
 		node_registry = new ArrayList<Node>();
 		connection_list = new ArrayList<Connection>();
+	}
+	
+	public void onEvent(Event e) {
+		
 	}
 	
 	//Threadsafe getter method
@@ -159,6 +168,31 @@ public class Registry {
 		}
 		
 	}
-
+	
+	
+	//Main method for Registry node
+	public static void main(String[] args){
+		TCPServerThread server = new TCPServerThread(5001, NUM_CONNECTIONS);
+		RegistryInputThread input_listener = new RegistryInputThread();
+		RegistryMessageThread server_listener = new RegistryMessageThread();
+		
+		while(true) {
+			//Check if there are any new connections
+			if(server.get() != null) {
+				
+			}
+			
+			//Check if there are any user inputs
+			if(input_listener.get() != null) {
+				
+			}
+			
+			//Check if there are any new messages from existing connections
+			if(server_listener.get() != null) {
+				
+			}
+		}
+		
+	}
 	 
 }

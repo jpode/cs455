@@ -1,9 +1,9 @@
 package cs455.overlay.wireformats;
 
-public class MessagingNodesList {
-	final int MESSAGE_TYPE = 4;
-	int num_message_nodes;
-	String[] node_info;
+public class MessagingNodesList implements Event{
+	private final int MESSAGE_TYPE = 4;
+	private int num_message_nodes;
+	private String[] node_info;
 	private int array_counter;
 	
 	
@@ -23,7 +23,15 @@ public class MessagingNodesList {
 		return false;
 	}
 	
-	public String getNodeInfo() {
+	public int getType() {
+		return MESSAGE_TYPE;
+	}
+	
+	public byte[] getBytes() {
+		return new String(MESSAGE_TYPE + "\n" + num_message_nodes + "\n" + getNodeInfo()).getBytes();
+	}
+	
+	private String getNodeInfo() {
 		String nodeinfo = "";
 		
 		for(int i = 0; i < array_counter; i++) {

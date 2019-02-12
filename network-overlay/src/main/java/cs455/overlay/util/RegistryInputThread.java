@@ -1,34 +1,34 @@
-package cs455.overlay.registry;
+package cs455.overlay.util;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
+public class RegistryInputThread implements Runnable{
+	private ConcurrentLinkedQueue<Integer> queue;
 
-/* The Controller class is the foreground registry process
- * It is responsible for creating/starting the server and registry objects, and listening for user commands
- * User commands are parsed and correspond to method in the Registry object
- * 
- */
-public class Controller {
+	//Non blocking call
+	public Integer get() throws InterruptedException {
+		return queue.poll();
+	}
 	
-	private static Server server;
-	private static Registry reg =  Registry.getInstance();
+	public RegistryInputThread() {
+		queue = new ConcurrentLinkedQueue<Integer>();
+	}
 	
-	public static void main(String[] args) throws IOException {
-		server = new Server(5001, 10);
-		
-		System.out.println("Starting server...");
-		server.startServer();
-		System.out.println("Server started");
-
+	public void run() {
 		//Listen for user commands
 		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 		String command = "";
 
 	    while (true) {
-		   command = in.readLine();
-		   
+			try {
+				command = in.readLine();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			   
 		   if(command.toLowerCase().equals("help")) {
 			   System.out.println("list-messaging-nodes");
 			   System.out.println("list-weights");
@@ -37,7 +37,7 @@ public class Controller {
 			   System.out.println("start <number of rounds>");
 			   continue;
 		   } else if(command.toLowerCase().equals("quit")){
-			   server.killServer();
+			   queue.add(-1);
 			   return;
 		   } else if(command.length() < 5){
 			   System.out.println("Invalid command. Type 'HELP' for a list of valid commands.");
@@ -46,32 +46,37 @@ public class Controller {
 		   
 		   if(command.toLowerCase().equals("list-messaging-nodes")) {
 			   System.out.println("Listing message nodes");
-			   System.out.println(reg.listMessageNodes());
+			   queue.add(1);
 		   } else if(command.toLowerCase().equals("list-weights")) {
 			   System.out.println("Listing node weights");
-			   System.out.println(reg.listWeights());
+			   queue.add(2);
 		   } else if(command.toLowerCase().equals("send-overlay-link-weights")) {
 			   System.out.println("Sending overlay link weights");
-			   reg.sendOverlayLinkWeights();
+			   queue.add(3);
 		   } else if(command.toLowerCase().substring(0,5).equals("start")) {
 			   if(command.length() < 6) {
-				   reg.start("10");
 				   System.out.println("Starting overlay with default of 10 rounds");
+				   queue.add(4);
+				   queue.add(10);
 			   } else {
-				   reg.start(command.substring(6));
 				   System.out.println("Starting overlay");
+				   queue.add(4);
+				   queue.add(Integer.parseInt(command.substring(6)));
 			   }
 		   } else if(command.toLowerCase().substring(0,13).equals("setup-overlay")) {
 			   if(command.length() < 15) {
-				   reg.constructOverlay("4");
 				   System.out.println("Setting up overlay with default of 4 links per node");
+				   queue.add(5);
+				   queue.add(4);
 			   } else {
-				   reg.constructOverlay(command.substring(14));
 				   System.out.println("Setting up overlay");
+				   queue.add(5);
+				   queue.add(Integer.parseInt(command.substring(14)));
 			   }
-		   } else {
+		   	} else {
 			   System.out.println("Invalid command. Type 'HELP' for a list of valid commands.");
-		   }
-	   }
+		   	}
+	    }
 	}
+
 }
