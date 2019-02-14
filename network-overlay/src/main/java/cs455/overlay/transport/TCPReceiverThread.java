@@ -21,6 +21,10 @@ public class TCPReceiverThread implements Runnable{
 		queue = new ConcurrentLinkedQueue<Event>();
 	}
 	
+	public Socket getSocket() {
+		return socket;
+	}
+	
 	//Nonblocking call
 	public Event get() throws InterruptedException {
 		return queue.poll();

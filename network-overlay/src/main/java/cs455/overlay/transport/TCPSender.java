@@ -7,11 +7,9 @@ import java.net.Socket;
 import cs455.overlay.wireformats.Event;
 
 public class TCPSender {
-	private Socket socket;
 	private DataOutputStream dout;
 	
 	public TCPSender(Socket socket) throws IOException {
-		this.socket = socket;
 		dout = new DataOutputStream(socket.getOutputStream());
 	}
 	

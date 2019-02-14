@@ -1,7 +1,7 @@
 package cs455.overlay.wireformats;
 
 public class RegisterResponse implements Event{
-	final int MESSAGE_TYPE = 2;
+	final int MESSAGE_TYPE = 1;
 	Byte status_code;
 	String additional_info;
 	

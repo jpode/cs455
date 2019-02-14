@@ -9,6 +9,7 @@ import cs455.overlay.transport.TCPReceiverThread;
 import cs455.overlay.transport.TCPSender;
 import cs455.overlay.wireformats.Deregister;
 import cs455.overlay.wireformats.Event;
+import cs455.overlay.wireformats.EventFactory;
 import cs455.overlay.wireformats.Register;
 
 public class MessagingNode implements Node{
@@ -50,10 +51,7 @@ public class MessagingNode implements Node{
 				server_sender = new TCPSender(socket);
 				
 				//Attempt to register with the server
-				Register rq = new Register(socket.getInetAddress().toString().substring(1), socket.getLocalPort());
-				byte[] packet = rq.getPacket();
-				
-				server_sender.sendData(packet);
+				server_sender.sendEvent(EventFactory.getInstance().createEvent(new String("1" + "\n" + socket.getInetAddress().toString().substring(1) + "\n" + socket.getLocalPort())));
 				
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -93,8 +91,7 @@ public class MessagingNode implements Node{
 
 	public void disconnect() {
 		//Deregister with the server
-		Deregister drq = new Deregister(socket.getInetAddress().toString().substring(1), socket.getLocalPort());
-		messageServer(drq.toString().getBytes());
+		server_sender.sendEvent(EventFactory.getInstance().createEvent(new String("2" + "\n" + socket.getInetAddress().toString().substring(1) + "\n" + socket.getLocalPort())));
 		
 		// Close streams and then sockets
 		try {

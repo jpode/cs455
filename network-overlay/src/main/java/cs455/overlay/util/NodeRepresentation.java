@@ -1,4 +1,4 @@
-package cs455.overlay.registry;
+package cs455.overlay.util;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -6,31 +6,39 @@ import java.net.Socket;
 
 //The Node class is a representation of a client node for use by the registry
 
-public class Node {
+public class NodeRepresentation {
 	private String ip_addr;
 	private Integer port;
 	private Socket self_socket;
-	private Node[] connected_nodes;
+	private NodeRepresentation[] connected_nodes;
 	private boolean overlay_constructed; //True if the overlay is being/has been constructed
 	private int connection_counter;
 	
-	public Node(String ip, Integer p, Socket socket) {
+	public NodeRepresentation(String ip, Integer p, Socket socket) {
 		ip_addr = ip;
 		port = p;
 		self_socket = socket;
 		overlay_constructed = false;
 		connection_counter = 0;
 	}
+	
+	public NodeRepresentation(String ip, Integer p) {
+		ip_addr = ip;
+		port = p;
+		self_socket = null;
+		overlay_constructed = false;
+		connection_counter = 0;
+	}
 
 	public void setMaxConnections(int num_connections) {
-		connected_nodes = new Node[num_connections];
+		connected_nodes = new NodeRepresentation[num_connections];
 		overlay_constructed = true;
 	}
 	
 	//Indicates a bidirectional connection between this node and the parameter node. 
 	//The Node class does not handle creating the other part of the bidirectional connection, that should be done by the registry. 
 	//Returns true if there is room in the connections array, otherwise returns false
-	public boolean establishConnection(Node node) {
+	public boolean establishConnection(NodeRepresentation node) {
 		if(overlay_constructed && connection_counter < connected_nodes.length) {
 			for(int i = 0; i < connected_nodes.length; i++) {
 
@@ -46,7 +54,7 @@ public class Node {
 		return false;
 	}
 	
-	public Node[] getConnections() {
+	public NodeRepresentation[] getConnections() {
 		return connected_nodes;
 	}
 	
@@ -55,7 +63,7 @@ public class Node {
 	}
 	
 	//Remove a node from this node's connection list
-	public boolean disconnectNode(Node node) {
+	public boolean disconnectNode(NodeRepresentation node) {
 		if(overlay_constructed) {
 			for(int i = 0; i < connected_nodes.length; i++) {
 				if(connected_nodes[i].equals(node)) {
@@ -87,16 +95,16 @@ public class Node {
 		}
 	}
 
-	//Generate equals method
+	//Equals method, compares IP address and port - NOT socket
 	@Override
 	public boolean equals(Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
-		if (!(obj instanceof Node))
+		if (!(obj instanceof NodeRepresentation))
 			return false;
-		Node other = (Node) obj;
+		NodeRepresentation other = (NodeRepresentation) obj;
 		if (ip_addr == null) {
 			if (other.ip_addr != null)
 				return false;

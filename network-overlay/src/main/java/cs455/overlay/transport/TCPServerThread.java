@@ -6,13 +6,16 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import cs455.overlay.wireformats.Event;
+
 public class TCPServerThread implements Runnable{
 
 	private boolean open;
 	private ServerSocket ss;
-	private ConcurrentLinkedQueue<Socket> queue;
+	private ConcurrentLinkedQueue<Socket> socket_queue;
+	private ConcurrentLinkedQueue<Event> event_queue;
 	
-	public TCPServerThread(Integer port, Integer num_connections) {
+	public TCPServerThread(Integer port) {
 		//Cycle through ports until an empty one is found
 		while(port < 66000) {
 			try {
@@ -23,8 +26,9 @@ public class TCPServerThread implements Runnable{
 			} catch(IOException e) {
 				//Create the server socket. Number of connections is specified as the max connection queue size
 				try {
-					this.ss = new ServerSocket(port, num_connections);
-					queue = new ConcurrentLinkedQueue<Socket>();
+					this.ss = new ServerSocket(port);
+					socket_queue = new ConcurrentLinkedQueue<Socket>();
+					event_queue = new ConcurrentLinkedQueue<Event>();
 					
 					break;
 				} catch (IOException e1) {
@@ -37,8 +41,16 @@ public class TCPServerThread implements Runnable{
 		this.open = false;
 	}
 	
-	public Socket get() {
-		return queue.poll();
+	public Socket getSocket() {
+		//This check is done to ensure that any thread polling for new socket connections will not retrieve the socket before the associated request message is available
+		if(event_queue.size() == socket_queue.size()) {
+			return socket_queue.poll();
+		}
+		return null;
+	}
+	
+	public Event getRequest() {
+		return event_queue.poll();
 	}
 	
 	public void run() {		
@@ -46,8 +58,27 @@ public class TCPServerThread implements Runnable{
 			try {
 				//Blocks until a connection comes in and is accepted 
 				Socket client_socket = ss.accept();
-				queue.add(client_socket);
 				
+				//If a connection is received, there should be a request message immediately following it
+				//Create a thread to listen for this, and an event to hold the request
+				TCPReceiverThread request_listener = new TCPReceiverThread(client_socket);
+				Event request_message;
+
+				//Wait for 100 ms for one to come, otherwise discard the connection
+				long startTime = System.currentTimeMillis(); //fetch starting time
+				while(false||(System.currentTimeMillis()-startTime)<100) {
+				   try {
+					   request_message = request_listener.get();
+					   
+					   if(request_message != null) {
+						   socket_queue.add(client_socket);
+						   event_queue.add(request_message);
+					   }
+				   } catch (InterruptedException e) {
+					   e.printStackTrace();
+				   }
+				}
+								
 			} catch (SocketException se) {
 				System.out.println(se.getMessage());
 			} catch (IOException ioe) {

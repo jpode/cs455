@@ -1,93 +1,106 @@
 package cs455.overlay.node;
 
-
-import java.io.DataOutputStream;
-import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.concurrent.ThreadLocalRandom;
 
 import cs455.overlay.transport.TCPServerThread;
+import cs455.overlay.util.Connection;
+import cs455.overlay.util.NodeRepresentation;
+import cs455.overlay.util.OverlayCreator;
 import cs455.overlay.util.RegistryInputThread;
 import cs455.overlay.util.RegistryMessageThread;
-import cs455.overlay.wireformats.MessagingNodesList;
-import cs455.overlay.wireformats.RegisterResponse;;
+import cs455.overlay.wireformats.Event;
 
 /* Registry class provides four functions:
+ * 	Register nodes
+ *	De-register nodes
+ * 	Construct overlay connections between nodes
+ * 	Assign link weights
  * 
- * Register nodes
- * De-register nodes
- * Construct overlay connections between nodes
- * Assign link weights
  * 
+ * To achieve this, the Registry class creates three threads and continually monitors the queues of each for new events:
+ * 	Server thread to listen for new connections
+ * 	Input thread to listen for user inputs
+ * 	Connection listener to listen for messages from any of the registered messaging nodes
  */
 public class Registry {
-	//Static instance variable to follow singleton pattern
-	private static Registry instance;
-	static //Number of connections that each message node will have in the overlay.
-	Integer NUM_CONNECTIONS;
-	//Registry data structure. MessageNodes contain a list of connections
-	ArrayList<Node> node_registry;
-	ArrayList<Connection> connection_list;
+	//Registry data structure. Node representations are used by the server to store data about registered nodes
+	private ArrayList<NodeRepresentation> node_registry;
+	//List of connections between nodes for use by the registry. Instantiated upon overlay construction
+	private Connection[] connection_list;
+	//Thread to listen for new messages from registered nodes
+	private RegistryMessageThread server_listener;
+	//Thread to listen for user inputs
+	private RegistryInputThread input_listener;
+	//Overlay creator object
+	private OverlayCreator overlay;
 	
-	//Private constructor to follow singleton pattern and ensure that only one registry class exists
-	private Registry() {
-		NUM_CONNECTIONS = 10;
-		node_registry = new ArrayList<Node>();
-		connection_list = new ArrayList<Connection>();
-	}
 	
-	public void onEvent(Event e) {
-		
-	}
-	
-	//Threadsafe getter method
-	public static synchronized Registry getInstance() {
-		if(instance == null) {
-			instance = new Registry();
+	private void onEvent(Event e) {
+		switch(e.getType()) {
+			case(2): //Deregister request
+				deregister(new NodeRepresentation(e.getSplitData()[0], Integer.parseInt(e.getSplitData()[1])));
+				break;
+			case(7): //TaskComplete
+				break;
+			case(9): //TrafficSummary
+				break;
+			default:
+				System.out.println("ERR::Registry::onEvent: invalid message type for registry");
+				return;
 		}
-		return instance;
+	}
+	
+	//Overloaded method is required for request events, because a new socket is associated with the event
+	private void onEvent(Event e, Socket socket) {
+		//TODO: add error handling for reading the event instead of assuming a correct message
+		String[] data_lines = new String(e.getBytes()).split("\n");
+		//Create a new node representation out of the IP address, port, and socket
+		NodeRepresentation new_node = new NodeRepresentation(data_lines[1], Integer.parseInt(data_lines[2]), socket);
+		
+		//Register the new node
+		register(new_node);
 	}
 	
 	//Request to register node. Fails if node is already registered, otherwise registers
-	public boolean register(Node node) {
-		for(Node check_node : node_registry) {
+	private void register(NodeRepresentation node) {
+		for(NodeRepresentation check_node : node_registry) {
 			if(node.equals(check_node)) {
-				return false;
+				System.out.println("ERR::Registry::register: registration of new node unsuccessful");	
+				return;
 			}
 		}
 		
 		node_registry.add(node);
-		return true;
+		server_listener.addConnection(node.getSocket());
+		System.out.println("Registry::register: registration of new node successful");
 	}
 	
 	//Request to deregister node. Fails if node is not registered, otherwise deregisters
-	public int deregister(Node node) {
-		for(Node check_node : node_registry) {
+	private void deregister(NodeRepresentation node) {
+		for(NodeRepresentation check_node : node_registry) {
 			if(node.equals(check_node)) {
 				node_registry.remove(check_node);
-				return 0;
+				System.out.println("Registry::register: node deregistered");
+				return;
 			}
 		}
 		
-		return 1;
-	}
-	
-	public int getNumConnections() {
-		return NUM_CONNECTIONS;
+		//Should not be reached
+		System.out.println("WRN::Registry::register: node unable to be deregistered");
 	}
 
-	public String listMessageNodes() {
+	private String listMessageNodes() {
 		String output = "";
 		
-		for(Node node : node_registry) {
+		for(NodeRepresentation node : node_registry) {
 			output += node.toString() + "\n";
 		}
 		
 		return output;
 	}
 
-	public String listWeights() {
+	private String listWeights() {
 		String output = "";
 		
 		for(Connection conn : connection_list) {
@@ -98,101 +111,105 @@ public class Registry {
 		
 	}
 
-	public void sendOverlayLinkWeights() {
+	private void sendOverlayLinkWeights() {
 		// TODO Auto-generated method stub
 		
 	}
 
-	public void start(String num_rounds) {
+	private void setupOverlay(int num_connections) {
+		overlay = new OverlayCreator();
+		connection_list = overlay.constructOverlay(node_registry, num_connections);
+	}
+	
+	private void start(int num_rounds) {
 		// TODO Auto-generated method stub
 		
 	}
-
-	public void constructOverlay(String num_connections) {
-		NUM_CONNECTIONS = Integer.parseInt(num_connections);
-		
-		//Redundancy here is due to the fact that each node needs to be aware of how many connections can be made
-		//TODO: more elegant solution. Possibly control number of connections made from Registry class insteadof Node
-		for(Node node : node_registry) {
-			node.setMaxConnections(NUM_CONNECTIONS);
-		}
-		
-		for(Node node : node_registry) {
-			generateConnections(node);
-			sendConnections(node);
-		}
-		
-	}
 	
-	//Establish randomized connections for a given node
-	//Node class ensures that a single node does not receive more than the indicated number of connections
-	private void generateConnections(Node node) {
-		int node_index = node_registry.indexOf(node);
-				
-		for(int i = node.getNumConnections() + 1; i <= NUM_CONNECTIONS; i++) {
-			int random_index = ThreadLocalRandom.current().nextInt(0, node_registry.size());
-			int random_weight = ThreadLocalRandom.current().nextInt(1, 11);
-
-			//Ensure a node does not connect to itself
-			if(random_index != node_index) {
-				Node random_node = node_registry.get(random_index);
-				if(random_node.establishConnection(node)){
-					node.establishConnection(random_node);
-					connection_list.add(new Connection(node, random_node, random_weight));
-					System.out.println("Connection " + i + " established for node " + node.toString());
-				} else { //The randomly selected node already has the max number of connections, a new connection is tried 
-					i--; 
-				}
-			}
-		}
-	}
-	
-	private void sendConnections(Node node) {
-		MessagingNodesList message = new MessagingNodesList(node.getNumConnections());
-		for(Node connected_node : node.getConnections()) {
-			message.addInfo(connected_node.toString());
-		}
+	private void start_listening() {
+		TCPServerThread server = new TCPServerThread(5001);
+		input_listener = new RegistryInputThread();
+		server_listener = new RegistryMessageThread();
 		
-		try {
-			DataOutputStream outputStream = new DataOutputStream(node.getSocket().getOutputStream());
-			byte[] packet = message.toString().getBytes();
-			Integer message_length = packet.length;
-
-			//Our self-inflicted protocol says we send the length first
-			outputStream.writeInt(message_length);
-			//Then we can send the message
-			outputStream.write(packet, 0, message_length);
-			
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		//Start threads
+		Thread server_thread = new Thread(server);
+		server_thread.start();
 		
-	}
-	
-	
-	//Main method for Registry node
-	public static void main(String[] args){
-		TCPServerThread server = new TCPServerThread(5001, NUM_CONNECTIONS);
-		RegistryInputThread input_listener = new RegistryInputThread();
-		RegistryMessageThread server_listener = new RegistryMessageThread();
+		Thread input_thread = new Thread(input_listener);
+		input_thread.start();
 		
+		Thread node_thread = new Thread(server_listener);
+		node_thread.start();
+		
+		Socket new_connection;
+		Integer new_input;
+		Event new_event;
+		boolean server_listening = true;
+		//The get() calls in the while loop do not block, because the registry needs to be actively listening for updates from all three threads
 		while(true) {
-			//Check if there are any new connections
-			if(server.get() != null) {
+			try {
 				
-			}
-			
-			//Check if there are any user inputs
-			if(input_listener.get() != null) {
+				if(server_listening) {
+					//Check if there is a new connection by getting its socket
+					new_connection = server.getSocket();
+					if(new_connection != null) {
+						//If there is, get the associated request event
+						new_event = server.getRequest();
+						onEvent(new_event, new_connection);
+					}
+				}
+				//Check if there are any user inputs
+				new_input = input_listener.get();
+				if(new_input != null) {
+					switch(new_input) {
+						case(0): //Kill the registry
+							server.killServer();
+							server_thread.interrupt();
+							
+							input_thread.interrupt();
+							
+							server_listener.kill();
+							node_thread.interrupt();
+							return;
+						case(1): //List messaging nodes
+							listMessageNodes();
+							break;
+						case(2): //List link weights
+							listWeights();
+							break;
+						case(3): //Send link weights to overlay
+							sendOverlayLinkWeights();
+							break;
+						case(4): //Set up overlay
+							setupOverlay(input_listener.get()); //Another get() is called to retrieve number of connections
+						
+							//Stop listening for new connections
+							server.killServer();
+							server_thread.interrupt();
+							server_listening = false;
+							break;
+						case(5): //Start messaging
+							start(input_listener.get()); //Another get() is called to retrieve number of messaging rounds
+							break;
+					}
+				}
 				
-			}
-			
-			//Check if there are any new messages from existing connections
-			if(server_listener.get() != null) {
+				//Check if there are any new messages from existing connections
+				new_event = server_listener.get();
+				if(new_event != null) {
+					onEvent(new_event);
+				}
 				
+			} catch (Exception e) {
+				//ignore
 			}
 		}
-		
 	}
+	
+	public static void main(String[] args){
+		Registry registry = new Registry();
+		registry.start_listening();
+	}
+
 	 
 }

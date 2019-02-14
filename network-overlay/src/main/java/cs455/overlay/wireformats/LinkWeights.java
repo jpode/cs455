@@ -1,9 +1,7 @@
 package cs455.overlay.wireformats;
 
-import java.util.ArrayList;
-
 public class LinkWeights implements Event{
-	private final int MESSAGE_TYPE = 5;
+	private final int MESSAGE_TYPE = 4;
 	private int num_links;
 	private String[] link_weights;
 	private int array_counter;

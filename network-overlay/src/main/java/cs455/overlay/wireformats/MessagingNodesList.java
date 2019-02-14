@@ -1,7 +1,7 @@
 package cs455.overlay.wireformats;
 
 public class MessagingNodesList implements Event{
-	private final int MESSAGE_TYPE = 4;
+	private final int MESSAGE_TYPE = 3;
 	private int num_message_nodes;
 	private String[] node_info;
 	private int array_counter;

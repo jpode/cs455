@@ -2,7 +2,7 @@ package cs455.overlay.wireformats;
 
 public class Deregister implements Event{
 
-	private final int MESSAGE_TYPE = 3;
+	private final int MESSAGE_TYPE = 2;
 	private String ip_address;
 	private int port_number;
 	
@@ -19,5 +19,13 @@ public class Deregister implements Event{
 	public byte[] getBytes() {
 		byte[] packet = new String(Integer.toString(MESSAGE_TYPE) + "\n" + ip_address + "\n" + Integer.toString(port_number)).getBytes();
 		return packet;
+	}
+	
+	public String[] getSplitData() {
+		String[] result = new String[2];
+		result[0] = ip_address;
+		result[1] = Integer.toString(port_number);
+		
+		return result;
 	}
 }
