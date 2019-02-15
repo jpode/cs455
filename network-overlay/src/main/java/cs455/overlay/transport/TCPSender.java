@@ -15,6 +15,7 @@ public class TCPSender {
 	
 	public void sendEvent(Event e) {
 		try {
+			System.out.println("Sending message: \n" + new String(e.getBytes()));
 			sendData(e.getBytes());
 		} catch (IOException e1) {
 			e1.printStackTrace();

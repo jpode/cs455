@@ -40,4 +40,9 @@ public class MessagingNodesList implements Event{
 		
 		return nodeinfo;
 	}
+
+	@Override
+	public String[] getSplitData() {
+		return getNodeInfo().split("\n");
+	}
 }

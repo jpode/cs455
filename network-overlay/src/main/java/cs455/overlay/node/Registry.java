@@ -1,8 +1,10 @@
 package cs455.overlay.node;
 
+import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
 
+import cs455.overlay.transport.TCPSender;
 import cs455.overlay.transport.TCPServerThread;
 import cs455.overlay.util.Connection;
 import cs455.overlay.util.NodeRepresentation;
@@ -10,6 +12,7 @@ import cs455.overlay.util.OverlayCreator;
 import cs455.overlay.util.RegistryInputThread;
 import cs455.overlay.util.RegistryMessageThread;
 import cs455.overlay.wireformats.Event;
+import cs455.overlay.wireformats.EventFactory;
 
 /* Registry class provides four functions:
  * 	Register nodes
@@ -37,6 +40,7 @@ public class Registry {
 	
 	
 	private void onEvent(Event e) {
+		System.out.println("Registry::onEvent: received new event");
 		switch(e.getType()) {
 			case(2): //Deregister request
 				deregister(new NodeRepresentation(e.getSplitData()[0], Integer.parseInt(e.getSplitData()[1])));
@@ -53,6 +57,7 @@ public class Registry {
 	
 	//Overloaded method is required for request events, because a new socket is associated with the event
 	private void onEvent(Event e, Socket socket) {
+		System.out.println("Registry::onEvent: received new registration event");
 		//TODO: add error handling for reading the event instead of assuming a correct message
 		String[] data_lines = new String(e.getBytes()).split("\n");
 		//Create a new node representation out of the IP address, port, and socket
@@ -90,30 +95,34 @@ public class Registry {
 		System.out.println("WRN::Registry::register: node unable to be deregistered");
 	}
 
-	private String listMessageNodes() {
+	private void listMessageNodes() {
 		String output = "";
 		
 		for(NodeRepresentation node : node_registry) {
 			output += node.toString() + "\n";
 		}
 		
-		return output;
+		System.out.println(output);
 	}
 
-	private String listWeights() {
+	private void listWeights() {
 		String output = "";
 		
 		for(Connection conn : connection_list) {
 			output += conn.toString() + "\n";
 		}
 		
-		return output;
+		System.out.println(output);
 		
 	}
 
 	private void sendOverlayLinkWeights() {
-		// TODO Auto-generated method stub
+		String data = "4" + "\n";
+		for(Connection conn : connection_list) {
+			data += conn.toString() + "\n";
+		}
 		
+		messageAllNodes(EventFactory.getInstance().createEvent(data));
 	}
 
 	private void setupOverlay(int num_connections) {
@@ -122,7 +131,7 @@ public class Registry {
 	}
 	
 	private void start(int num_rounds) {
-		// TODO Auto-generated method stub
+		messageAllNodes(EventFactory.getInstance().createEvent("5" + "\n" + "Rounds: " + num_rounds));
 		
 	}
 	
@@ -132,12 +141,15 @@ public class Registry {
 		server_listener = new RegistryMessageThread();
 		
 		//Start threads
+		System.out.println("Registry::start_listening: starting server thread");
 		Thread server_thread = new Thread(server);
 		server_thread.start();
 		
+		System.out.println("Registry::start_listening: starting input thread");
 		Thread input_thread = new Thread(input_listener);
 		input_thread.start();
 		
+		System.out.println("Registry::start_listening: starting node listener thread");
 		Thread node_thread = new Thread(server_listener);
 		node_thread.start();
 		
@@ -148,11 +160,11 @@ public class Registry {
 		//The get() calls in the while loop do not block, because the registry needs to be actively listening for updates from all three threads
 		while(true) {
 			try {
-				
 				if(server_listening) {
 					//Check if there is a new connection by getting its socket
 					new_connection = server.getSocket();
 					if(new_connection != null) {
+						System.out.println("Registry::start_listening: new connection socket found");
 						//If there is, get the associated request event
 						new_event = server.getRequest();
 						onEvent(new_event, new_connection);
@@ -206,8 +218,22 @@ public class Registry {
 		}
 	}
 	
+	
+	private void messageAllNodes(Event e) {
+		for(NodeRepresentation node : node_registry) {
+			try {
+				TCPSender sender = new TCPSender(node.getSocket());
+				sender.sendEvent(e);
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+		}
+	}
+	
 	public static void main(String[] args){
+		System.out.println("Creating registry");
 		Registry registry = new Registry();
+		System.out.println("Registry node starting");
 		registry.start_listening();
 	}
 

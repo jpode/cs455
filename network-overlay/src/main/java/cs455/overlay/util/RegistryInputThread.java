@@ -18,6 +18,7 @@ public class RegistryInputThread implements Runnable{
 	}
 	
 	public void run() {
+		System.out.println("Input thread started");
 		//Listen for user commands
 		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 		String command = "";

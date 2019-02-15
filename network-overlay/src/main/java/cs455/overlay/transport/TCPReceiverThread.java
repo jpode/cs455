@@ -36,11 +36,12 @@ public class TCPReceiverThread implements Runnable{
 			try {
 				//Blocks until a message comes in
 				dataLength = din.readInt();
+				System.out.println("Received message: \n" + dataLength);
 				byte[] data = new byte[dataLength];
 				din.readFully(data, 0, dataLength);
-				
+				System.out.println("Received message: \n" + new String(data));
 				//Add a new event created from the message to the queue
-				queue.add(EventFactory.getInstance().createEvent(data.toString()));
+				queue.add(EventFactory.getInstance().createEvent(new String(data)));
 				
 			} catch (SocketException se) {
 				System.out.println(se.getMessage());

@@ -20,7 +20,7 @@ public class EventFactory {
 			case(0): //Register: node to registry
 				return new Register(lines[1], Integer.parseInt(lines[2]));
 			case(1): //Register response: registry to node
-				return new Deregister(lines[1], Integer.parseInt(lines[2]));
+				return new RegisterResponse(lines[1].getBytes()[0], lines[2]);
 			case(2): //Deregister: node to registry
 				return new Deregister(lines[1], Integer.parseInt(lines[2]));
 			case(3): //MessagingNodesList: registry to node

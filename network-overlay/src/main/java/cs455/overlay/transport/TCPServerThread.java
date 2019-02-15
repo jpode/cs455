@@ -19,22 +19,19 @@ public class TCPServerThread implements Runnable{
 		//Cycle through ports until an empty one is found
 		while(port < 66000) {
 			try {
-				//Test to see if the port is available
-				Socket test_socket = new Socket("localhost", port);
-				port++;
+				System.out.println("TCPServerThread::constructor: checking port " + port);
 
-			} catch(IOException e) {
-				//Create the server socket. Number of connections is specified as the max connection queue size
-				try {
-					this.ss = new ServerSocket(port);
-					socket_queue = new ConcurrentLinkedQueue<Socket>();
-					event_queue = new ConcurrentLinkedQueue<Event>();
-					
-					break;
-				} catch (IOException e1) {
-					e1.printStackTrace();
-					System.exit(1);
-				}
+				this.ss = new ServerSocket(port);
+				
+				System.out.println("Server thread started: " + ss.getInetAddress() + ":" + ss.getLocalPort());
+
+				socket_queue = new ConcurrentLinkedQueue<Socket>();
+				event_queue = new ConcurrentLinkedQueue<Event>();
+				
+				break;
+			} catch (IOException e1) {
+				port++;
+				continue;
 			}
 		}
 		
@@ -53,15 +50,22 @@ public class TCPServerThread implements Runnable{
 		return event_queue.poll();
 	}
 	
-	public void run() {		
+	public void run() {	
+		open = true;
 		while(open) {
 			try {
 				//Blocks until a connection comes in and is accepted 
+				System.out.println("TCPServerThread::run: waiting for new connection...");
+
 				Socket client_socket = ss.accept();
 				
+				System.out.println("TCPServerThread::run: received new connection");
 				//If a connection is received, there should be a request message immediately following it
 				//Create a thread to listen for this, and an event to hold the request
 				TCPReceiverThread request_listener = new TCPReceiverThread(client_socket);
+				Thread request_thread = new Thread(request_listener);
+				request_thread.start();
+				
 				Event request_message;
 
 				//Wait for 100 ms for one to come, otherwise discard the connection

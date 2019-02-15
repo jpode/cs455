@@ -38,4 +38,9 @@ public class LinkWeights implements Event{
 		
 		return weights;
 	}
+
+	@Override
+	public String[] getSplitData() {
+		return getLinkWeights().split("\n");
+	}
 }

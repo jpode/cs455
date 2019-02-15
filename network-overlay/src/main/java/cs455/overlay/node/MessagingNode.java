@@ -33,6 +33,7 @@ public class MessagingNode implements Node{
 	
 	public boolean connectToServer(String addr, Integer port) {
 		boolean connected = false;
+		
 		socket = attemptConnection(addr, port);
 
 		if (socket != null && socket.isConnected()) { 
@@ -51,8 +52,10 @@ public class MessagingNode implements Node{
 				server_sender = new TCPSender(socket);
 				
 				//Attempt to register with the server
-				server_sender.sendEvent(EventFactory.getInstance().createEvent(new String("1" + "\n" + socket.getInetAddress().toString().substring(1) + "\n" + socket.getLocalPort())));
+				server_sender.sendEvent(EventFactory.getInstance().createEvent(new String("0" + "\n" + socket.getInetAddress().toString().substring(1) + "\n" + socket.getLocalPort())));
 				
+				input_stream.readInt();
+				System.out.println("node received message");
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -103,5 +106,9 @@ public class MessagingNode implements Node{
 		}
 	}
 
+	public static void main(String[] args) {
+		MessagingNode node = new MessagingNode();
+		node.connectToServer("127.0.0.1", 5001);
+	}
 
 }

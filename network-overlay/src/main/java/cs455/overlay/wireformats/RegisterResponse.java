@@ -17,4 +17,10 @@ public class RegisterResponse implements Event{
 	public byte[] getBytes() {
 		return new String(Integer.toString(MESSAGE_TYPE) + "\n" + status_code.toString() + "\n" + additional_info).getBytes();
 	}
+
+	@Override
+	public String[] getSplitData() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 }
