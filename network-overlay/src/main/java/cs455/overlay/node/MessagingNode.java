@@ -28,17 +28,32 @@ import cs455.overlay.wireformats.Message;
 
 public class MessagingNode implements Node{
 	
-	private Socket socket;
-	private DataInputStream input_stream;
-	private DataOutputStream output_stream;
-	private TCPReceiverThread server_listener;
-	private TCPSender server_sender;
+	//Socket for connection to registry node
+	private Socket registry_socket;
+	//Runnable object to listen for messages from the registry
+	private TCPReceiverThread registry_listener;
+	//Sender object to send messages to registry
+	private TCPSender registry_sender;
+	//Thread that the registry_listener will run in
+	private Thread registry_thread;
+	//Name of this node
+	private String self;
+	//Port that this node is listening on for connections from other nodes - this will be sent to the registry
 	private int listening_port;
-	private Thread server_thread;
+	//Runnable object to listen for connections from other nodes
+	private TCPServerThread node_listener;
+	//Thread that the node_listener will run in
+	private Thread node_thread;
+	//List of nodes that this node directly connects to. Format: <ip>:<port>
 	private String[] connections;
+	//List of all connections in the overlay with weights
 	private Connection[] all_connections;
-	private HashSet<NodeRepresentation> all_nodes; //This is a HashSet because the total number of nodes in the overlay is not sent by the registry, and avoids duplicates
+	//List of all nodes in the overlay
+	//This is a HashSet because the total number of nodes in the overlay is not sent by the registry, and it avoids duplicates
+	private HashSet<NodeRepresentation> all_nodes; 
+	//Object to calculate the shortest path and provide the starting node
 	private ShortestPath route_calculator;
+	//Metric tracking values
 	private int sendTracker;
 	private int receiveTracker;
 	
@@ -60,8 +75,8 @@ public class MessagingNode implements Node{
 					}
 				} else {
 					System.out.println("ERR:MessagingNode::connectToServer: registration not successful; status code = " + ((RegisterResponse)e).getStatusCode());
-					server_listener.kill();
-					server_thread.interrupt();
+					registry_listener.kill();
+					registry_thread.interrupt();
 				}
 				break;
 			case(3)://MessagingNodesList
@@ -98,27 +113,28 @@ public class MessagingNode implements Node{
 		
 	public void connectToRegistry(String addr, Integer port) {		
 		
-		if (socket != null && socket.isConnected()) { 
+		registry_socket = connectToNode(addr, port);
+		
+		if (registry_socket != null && registry_socket.isConnected()) { 
 			//Node is connected to the server at this point			
 			try {
-				Socket socket = new Socket(addr, port);
 				
 				//Start a thread to listen to the server
-				server_listener = new TCPReceiverThread(socket);
-				server_thread = new Thread(server_listener);
-				server_thread.start();
+				registry_listener = new TCPReceiverThread(registry_socket);
+				registry_thread = new Thread(registry_listener);
+				registry_thread.start();
 				
 				//Instantiate TCP sender object to send messages to the server
-				server_sender = new TCPSender(socket);
+				registry_sender = new TCPSender(registry_socket);
 				
 				//Attempt to register with the server
-				server_sender.sendEvent(EventFactory.getInstance().createEvent(new String("0" + "\n" + socket.getInetAddress().toString().substring(1) + "\n" + listening_port)));
+				registry_sender.sendEvent(EventFactory.getInstance().createEvent(new String("0" + "\n" + registry_socket.getInetAddress().toString().substring(1) + "\n" + listening_port)));
 				
 				//Check for for a registration confirmation message
 				Event message;
 				while(true) {
 					try {
-						message = server_listener.get();
+						message = registry_listener.get();
 						
 						if(message != null) {
 							System.out.println("Received message...");
@@ -151,26 +167,25 @@ public class MessagingNode implements Node{
 	
 	public void disconnectFromServer() {
 		//Deregister with the server
-		server_sender.sendEvent(EventFactory.getInstance().createEvent(new String("2" + "\n" + socket.getInetAddress().toString().substring(1) + "\n" + socket.getLocalPort())));
+		registry_sender.sendEvent(EventFactory.getInstance().createEvent(new String("2" + "\n" + registry_socket.getInetAddress().toString().substring(1) + "\n" + registry_socket.getLocalPort())));
 		
-		// Close streams and then sockets
 		try {
-			input_stream.close();
-			output_stream.close();
-			socket.close();
+			registry_socket.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 	
-	//TODO: possibly thread this
 	private void messageNodes(int num_rounds) {
 		TCPSender sender;
 		Socket socket;
+		
+		route_calculator = new ShortestPath(all_connections);
+		
 		for(int i = 0; i < num_rounds; i++) {
 			try {
 				NodeRepresentation sink = getRandomNode();
-				route_calculator.calculateRoute(sink);
+				route_calculator.calculateShortestPath(self, sink.toString());
 				
 				socket = connectToNode(route_calculator.getStartingNodeIP(), route_calculator.getStartingNodePort());
 				sender = new TCPSender(socket);
@@ -178,7 +193,9 @@ public class MessagingNode implements Node{
 				//Create new message that has the path the message the take and a random payload, and sends it to the starting node
 				sender.sendEvent(EventFactory.getInstance().createEvent("6" + "\n" + "\n" + route_calculator.getPath() + "\n" + ThreadLocalRandom.current().nextInt(-2147483648, 2147483647)));
 				
+				//Connection should be closed as quickly as possible
 				socket.close();
+				
 				//TODO: probably need to make this update thread-safe
 				sendTracker++;
 			} catch (IOException e) {
@@ -199,23 +216,25 @@ public class MessagingNode implements Node{
 		return iter.next();
 	}
 	
-	private void start_listening() {
+	private void start_listening(String registry_ip, int registry_port) {
 		Event registry_message;
 		
-		//Start threads
-		TCPServerThread server = new TCPServerThread(6001);
-		listening_port = server.getPort();
+		//Start node listener thread
+		node_listener = new TCPServerThread(6001);
+		listening_port = node_listener.getPort();
 		
-		Thread server_thread = new Thread(server);
-		server_thread.start();
+		node_thread = new Thread(node_listener);
+		node_thread.start();
 		
-		//Connect to registry
-		connectToRegistry("127.0.0.1", 5001);
-
+		//Connect to registry and start registry threads
+		connectToRegistry(registry_ip, registry_port);
+		
+		//Use the socket to determine IP address and assign name to this node
+		self = registry_socket.getInetAddress().toString().substring(1) + ":" + listening_port;
 		
 		while(true) {
 			try {
-				registry_message = server_listener.get();
+				registry_message = registry_listener.get();
 				if(registry_message != null) {
 					onEvent(registry_message);
 				}
@@ -228,7 +247,7 @@ public class MessagingNode implements Node{
 
 	public static void main(String[] args) {
 		MessagingNode node = new MessagingNode();
-		node.start_listening();
+		node.start_listening("127.0.0.1", 5001);
 	}
 
 }
