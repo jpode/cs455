@@ -10,17 +10,23 @@ public class RegisterResponse implements Event{
 		additional_info = info;
 	}
 	
+	@Override
 	public int getType() {
 		return MESSAGE_TYPE;
 	}
 	
+	@Override
 	public byte[] getBytes() {
-		return new String(Integer.toString(MESSAGE_TYPE) + "\n" + status_code.toString() + "\n" + additional_info).getBytes();
+		return new String(Integer.toString(MESSAGE_TYPE) + "\n" + new String(new byte[] {status_code}) + "\n" + additional_info).getBytes();
 	}
 
 	@Override
 	public String[] getSplitData() {
-		// TODO Auto-generated method stub
-		return null;
+		return (new String(Integer.toString(MESSAGE_TYPE) + "\n" + new String(new byte[] {status_code}) + "\n" + additional_info)).split("\n");
+	}
+	
+	public int getStatusCode() {
+		//Converting to string first ensures the correct int value is returned
+		return (Integer.parseInt(new String(new byte[] {status_code})));
 	}
 }

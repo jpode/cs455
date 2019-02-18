@@ -37,7 +37,13 @@ public class Registry {
 	private RegistryInputThread input_listener;
 	//Overlay creator object
 	private OverlayCreator overlay;
+	//Indicates that the overlay has been created for the current session
+	private boolean overlay_constructed;
 	
+	public Registry() {
+		node_registry = new ArrayList<NodeRepresentation>();
+		overlay_constructed = false;
+	}
 	
 	private void onEvent(Event e) {
 		System.out.println("Registry::onEvent: received new event");
@@ -62,9 +68,19 @@ public class Registry {
 		String[] data_lines = new String(e.getBytes()).split("\n");
 		//Create a new node representation out of the IP address, port, and socket
 		NodeRepresentation new_node = new NodeRepresentation(data_lines[1], Integer.parseInt(data_lines[2]), socket);
-		
+
 		//Register the new node
 		register(new_node);
+		
+
+		//Send registration response to the node
+		try {
+			System.out.println("Sending response to client");
+			TCPSender response_sender = new TCPSender(socket);
+			response_sender.sendEvent(EventFactory.getInstance().createEvent("1" + "\n" + "0" + "\n" + "Registration successful"));
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
 	}
 	
 	//Request to register node. Fails if node is already registered, otherwise registers
@@ -106,18 +122,24 @@ public class Registry {
 	}
 
 	private void listWeights() {
+		if(!overlay_constructed) {
+			System.out.println("ERR:Registry:Overlay not yet constructed." );
+			return;
+		}
 		String output = "";
 		
 		for(Connection conn : connection_list) {
 			output += conn.toString() + "\n";
 		}
 		
+		System.out.println("Number of connections: " + connection_list.length);
 		System.out.println(output);
 		
 	}
 
 	private void sendOverlayLinkWeights() {
-		String data = "4" + "\n";
+		String data = "4" + "\n" + connection_list.length + "\n";
+		
 		for(Connection conn : connection_list) {
 			data += conn.toString() + "\n";
 		}
@@ -128,11 +150,12 @@ public class Registry {
 	private void setupOverlay(int num_connections) {
 		overlay = new OverlayCreator();
 		connection_list = overlay.constructOverlay(node_registry, num_connections);
+		overlay_constructed = true;
+		System.out.println("Registry: Overlay constructed. Server will not add or remove nodes from this overlay until reset command is entered.");
 	}
 	
 	private void start(int num_rounds) {
-		messageAllNodes(EventFactory.getInstance().createEvent("5" + "\n" + "Rounds: " + num_rounds));
-		
+		messageAllNodes(EventFactory.getInstance().createEvent("5" + "\n" + "Rounds: " + num_rounds));	
 	}
 	
 	private void start_listening() {
@@ -141,26 +164,22 @@ public class Registry {
 		server_listener = new RegistryMessageThread();
 		
 		//Start threads
-		System.out.println("Registry::start_listening: starting server thread");
 		Thread server_thread = new Thread(server);
 		server_thread.start();
 		
-		System.out.println("Registry::start_listening: starting input thread");
 		Thread input_thread = new Thread(input_listener);
 		input_thread.start();
 		
-		System.out.println("Registry::start_listening: starting node listener thread");
 		Thread node_thread = new Thread(server_listener);
 		node_thread.start();
 		
 		Socket new_connection;
 		Integer new_input;
 		Event new_event;
-		boolean server_listening = true;
 		//The get() calls in the while loop do not block, because the registry needs to be actively listening for updates from all three threads
 		while(true) {
 			try {
-				if(server_listening) {
+				if(!overlay_constructed) { //If the overlay is constructed, don't try to register new nodes
 					//Check if there is a new connection by getting its socket
 					new_connection = server.getSocket();
 					if(new_connection != null) {
@@ -193,12 +212,15 @@ public class Registry {
 							sendOverlayLinkWeights();
 							break;
 						case(4): //Set up overlay
-							setupOverlay(input_listener.get()); //Another get() is called to retrieve number of connections
-						
-							//Stop listening for new connections
-							server.killServer();
-							server_thread.interrupt();
-							server_listening = false;
+							
+							//Change 3 to 10 later
+							if(node_registry.size() < 3) {
+								System.out.println("ERR:Registry: not enough connected nodes to set up overlay");
+								input_listener.get(); //Clear the message queue
+							} else {
+								setupOverlay(input_listener.get()); //Another get() is called to retrieve number of connections
+							}
+							
 							break;
 						case(5): //Start messaging
 							start(input_listener.get()); //Another get() is called to retrieve number of messaging rounds
@@ -213,7 +235,7 @@ public class Registry {
 				}
 				
 			} catch (Exception e) {
-				//ignore
+				e.printStackTrace();
 			}
 		}
 	}
@@ -231,7 +253,6 @@ public class Registry {
 	}
 	
 	public static void main(String[] args){
-		System.out.println("Creating registry");
 		Registry registry = new Registry();
 		System.out.println("Registry node starting");
 		registry.start_listening();

@@ -19,8 +19,6 @@ public class TCPServerThread implements Runnable{
 		//Cycle through ports until an empty one is found
 		while(port < 66000) {
 			try {
-				System.out.println("TCPServerThread::constructor: checking port " + port);
-
 				this.ss = new ServerSocket(port);
 				
 				System.out.println("Server thread started: " + ss.getInetAddress() + ":" + ss.getLocalPort());
@@ -36,6 +34,10 @@ public class TCPServerThread implements Runnable{
 		}
 		
 		this.open = false;
+	}
+	
+	public int getPort() {
+		return ss.getLocalPort();
 	}
 	
 	public Socket getSocket() {
@@ -79,7 +81,7 @@ public class TCPServerThread implements Runnable{
 						   event_queue.add(request_message);
 					   }
 				   } catch (InterruptedException e) {
-					   e.printStackTrace();
+					   System.out.println("TCPServerThread::run: error reading registration message");
 				   }
 				}
 								

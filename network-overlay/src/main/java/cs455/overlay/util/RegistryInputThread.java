@@ -18,7 +18,6 @@ public class RegistryInputThread implements Runnable{
 	}
 	
 	public void run() {
-		System.out.println("Input thread started");
 		//Listen for user commands
 		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 		String command = "";
@@ -54,27 +53,27 @@ public class RegistryInputThread implements Runnable{
 		   } else if(command.toLowerCase().equals("send-overlay-link-weights")) {
 			   System.out.println("Sending overlay link weights");
 			   queue.add(3);
-		   } else if(command.toLowerCase().substring(0,5).equals("start")) {
+		   } else if(command.length() > 13 && command.toLowerCase().substring(0,13).equals("setup-overlay")) {
+			   if(command.length() < 15) {
+				   System.out.println("Setting up overlay with default of 4 links per node...");
+				   queue.add(4);
+				   queue.add(4);
+			   } else {
+				   System.out.println("Setting up overlay...");
+				   queue.add(4);
+				   queue.add(Integer.parseInt(command.substring(14)));
+			   }
+		   	} else if(command.toLowerCase().substring(0,5).equals("start")) {
 			   if(command.length() < 6) {
 				   System.out.println("Starting overlay with default of 10 rounds");
-				   queue.add(4);
+				   queue.add(5);
 				   queue.add(10);
 			   } else {
 				   System.out.println("Starting overlay");
-				   queue.add(4);
+				   queue.add(5);
 				   queue.add(Integer.parseInt(command.substring(6)));
 			   }
-		   } else if(command.toLowerCase().substring(0,13).equals("setup-overlay")) {
-			   if(command.length() < 15) {
-				   System.out.println("Setting up overlay with default of 4 links per node");
-				   queue.add(5);
-				   queue.add(4);
-			   } else {
-				   System.out.println("Setting up overlay");
-				   queue.add(5);
-				   queue.add(Integer.parseInt(command.substring(14)));
-			   }
-		   	} else {
+		   } else {
 			   System.out.println("Invalid command. Type 'HELP' for a list of valid commands.");
 		   	}
 	    }

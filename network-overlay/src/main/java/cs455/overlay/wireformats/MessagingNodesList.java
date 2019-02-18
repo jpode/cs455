@@ -23,13 +23,21 @@ public class MessagingNodesList implements Event{
 		return false;
 	}
 	
+	@Override
 	public int getType() {
 		return MESSAGE_TYPE;
 	}
 	
+	@Override
 	public byte[] getBytes() {
 		return new String(MESSAGE_TYPE + "\n" + num_message_nodes + "\n" + getNodeInfo()).getBytes();
 	}
+
+	@Override
+	public String[] getSplitData() {
+		return (new String(MESSAGE_TYPE + "\n" + num_message_nodes + "\n" + getNodeInfo())).split("\n");
+	}
+	
 	
 	private String getNodeInfo() {
 		String nodeinfo = "";
@@ -39,10 +47,5 @@ public class MessagingNodesList implements Event{
 		}
 		
 		return nodeinfo;
-	}
-
-	@Override
-	public String[] getSplitData() {
-		return getNodeInfo().split("\n");
 	}
 }

@@ -40,15 +40,21 @@ public class NodeRepresentation {
 	//Returns true if there is room in the connections array, otherwise returns false
 	public boolean establishConnection(NodeRepresentation node) {
 		if(overlay_constructed && connection_counter < connected_nodes.length) {
+			
+			//First check if a connection was already made with this node
 			for(int i = 0; i < connected_nodes.length; i++) {
+				 if(!(connected_nodes[i] == null) && connected_nodes[i].equals(node)) { //Connection already exists
+						return false;
+					}  
+			}
 
+			//If there is available connection space, find it and add the new connection
+			for(int i = 0; i < connected_nodes.length; i++) {
 				if(connected_nodes[i] == null) {	
 					connected_nodes[i] = node;
 					connection_counter++;
 					return true;
-				} else if(connected_nodes[i].equals(node)) { //Connection already exists
-					return false;
-				}  
+				} 
 			}
 		}
 		return false;

@@ -41,6 +41,6 @@ public class LinkWeights implements Event{
 
 	@Override
 	public String[] getSplitData() {
-		return getLinkWeights().split("\n");
+		return (new String(MESSAGE_TYPE + "\n" + num_links + "\n" + getLinkWeights())).split("\n");
 	}
 }

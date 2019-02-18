@@ -32,14 +32,15 @@ public class TCPReceiverThread implements Runnable{
 	
 	public void run() {
 		int dataLength;
+		System.out.println("TCPReceiverThread::run: starting...");
 		while (socket != null) {
 			try {
 				//Blocks until a message comes in
 				dataLength = din.readInt();
-				System.out.println("Received message: \n" + dataLength);
+				System.out.println("TCPReceiverThread::run: received message from " + socket.getRemoteSocketAddress().toString().substring(1));
 				byte[] data = new byte[dataLength];
 				din.readFully(data, 0, dataLength);
-				System.out.println("Received message: \n" + new String(data));
+				//System.out.println("Received message: \n" + new String(data));
 				//Add a new event created from the message to the queue
 				queue.add(EventFactory.getInstance().createEvent(new String(data)));
 				
@@ -51,6 +52,9 @@ public class TCPReceiverThread implements Runnable{
 				break;
 			}
 		}
+		
+		System.out.println("TCPReceiverThread::run: stopped running");
+
 	}
 	
 	public void kill() {
