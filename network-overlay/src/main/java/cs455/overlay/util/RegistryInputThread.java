@@ -36,7 +36,7 @@ public class RegistryInputThread implements Runnable{
 			   System.out.println("setup-overlay <number of connections>");
 			   System.out.println("start <number of rounds>");
 			   continue;
-		   } else if(command.toLowerCase().equals("quit")){
+		   } else if(command.toLowerCase().equals("quit") || command.toLowerCase().equals("kill")){
 			   queue.add(-1);
 			   return;
 		   } else if(command.length() < 5){
@@ -75,8 +75,7 @@ public class RegistryInputThread implements Runnable{
 			   }
 		   } else {
 			   System.out.println("Invalid command. Type 'HELP' for a list of valid commands.");
-		   	}
+		   }
 	    }
 	}
-
 }

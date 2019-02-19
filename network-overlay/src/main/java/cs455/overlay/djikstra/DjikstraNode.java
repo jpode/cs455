@@ -86,5 +86,10 @@ public class DjikstraNode {
 		} else if (!node.equals(other.node))
 			return false;
 		return true;
-	}	
+	}
+	
+	@Override
+	public String toString() {
+		return node;
+	}
 }

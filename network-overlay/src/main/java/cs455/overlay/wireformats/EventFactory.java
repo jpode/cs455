@@ -38,9 +38,9 @@ public class EventFactory {
 				}
 				return lw;
 			case(5): //TaskInitiate: registry to node
-				return null;
+				return new TaskInitiate(Integer.parseInt(lines[1]));
 			case(6): //Message: node to node
-				return null;
+				return new Message(lines[1], Integer.parseInt(lines[2]));
 			case(7): //TaskComplete: node to registry
 				return null;
 			case(8): // PullTrafficSummary: registry to node

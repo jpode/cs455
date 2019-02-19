@@ -1,27 +1,24 @@
 package cs455.overlay.djikstra;
 
+import java.util.ArrayList;
+
 public class RoutingCache {
-	private String[] cache;
-	private int index;
+	private ArrayList<String> cache;
 	
-	public RoutingCache(int i) {
-		cache = new String[i];
-		index = 0;
+	public RoutingCache() {
+		cache = new ArrayList<String>();
 	}
 	
 	public void addToCache(String path) {
-		if(index < cache.length) {
-			cache[index] = path;
-			index++;
-		}
+		cache.add(path);
 	}
 	
 	public String checkForPath(String source, String sink) {
-		for(String path : cache) {
-			String[] components = path.split("--");
+		for(int i = 0; i < cache.size(); i++) {
+			String[] components = cache.get(i).split("--");
 			
 			if(components[0].equals(source) && components[components.length -1].equals(sink)) {
-				return components[2];
+				return cache.get(i);
 			}
 		}
 		return null;

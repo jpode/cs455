@@ -44,6 +44,7 @@ public class NodeRepresentation {
 			//First check if a connection was already made with this node
 			for(int i = 0; i < connected_nodes.length; i++) {
 				 if(!(connected_nodes[i] == null) && connected_nodes[i].equals(node)) { //Connection already exists
+					 System.out.println((ip_addr + port) + " cannot establish connection with " + node.toString() + " because the connection already exists");
 						return false;
 					}  
 			}
@@ -57,6 +58,9 @@ public class NodeRepresentation {
 				} 
 			}
 		}
+		 System.out.println((ip_addr + port) + " cannot establish connection with " + node.toString() + " for some reason");
+		 System.out.println("INFO: connection_counter: " + connection_counter + ", connected_nodes length: " + connected_nodes.length);
+
 		return false;
 	}
 	

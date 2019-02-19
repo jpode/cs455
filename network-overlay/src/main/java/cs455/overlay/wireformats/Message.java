@@ -5,15 +5,14 @@ public class Message implements Event{
 	private int payload;
 	private String path;
 	
-	public Message(int payload, String path) {
-		this.payload = payload;
+	public Message(String path, int payload) {
 		this.path = path;
+		this.payload = payload;
 	}
 
 	@Override
 	public int getType() {
-		// TODO Auto-generated method stub
-		return 0;
+		return MESSAGE_TYPE;
 	}
 
 	@Override

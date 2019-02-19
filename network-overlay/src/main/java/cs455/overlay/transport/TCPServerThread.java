@@ -48,7 +48,7 @@ public class TCPServerThread implements Runnable{
 		return null;
 	}
 	
-	public Event getRequest() {
+	public Event getEvent() {
 		return event_queue.poll();
 	}
 	
@@ -62,26 +62,26 @@ public class TCPServerThread implements Runnable{
 				Socket client_socket = ss.accept();
 				
 				System.out.println("TCPServerThread::run: received new connection");
-				//If a connection is received, there should be a request message immediately following it
-				//Create a thread to listen for this, and an event to hold the request
+				//If a connection is received, there should be a message (of type Register or Message) immediately following it
+				//Create a thread to listen for this, and an event to hold the message
 				TCPReceiverThread request_listener = new TCPReceiverThread(client_socket);
 				Thread request_thread = new Thread(request_listener);
 				request_thread.start();
 				
-				Event request_message;
+				Event message;
 
 				//Wait for 100 ms for one to come, otherwise discard the connection
 				long startTime = System.currentTimeMillis(); //fetch starting time
 				while(false||(System.currentTimeMillis()-startTime)<100) {
 				   try {
-					   request_message = request_listener.get();
+					   message = request_listener.get();
 					   
-					   if(request_message != null) {
-						   socket_queue.add(client_socket);
-						   event_queue.add(request_message);
+					   if(message != null) {
+						   socket_queue.add(client_socket); //Socket isn't needed if the message is not a Register request, but the parent thread can dispose of it anyways
+						   event_queue.add(message);
 					   }
 				   } catch (InterruptedException e) {
-					   System.out.println("TCPServerThread::run: error reading registration message");
+					   System.out.println("TCPServerThread::run: error receiving message");
 				   }
 				}
 								
@@ -99,8 +99,7 @@ public class TCPServerThread implements Runnable{
 		try {
 			ss.close();
 		} catch (IOException e) {
-			System.out.println("ERROR: Server was not killed gracefully");
-			e.printStackTrace();
+			System.out.println("ERROR: Server object was not killed gracefully");
 		}
 	}
 

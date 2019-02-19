@@ -1,22 +1,18 @@
 package cs455.overlay.node;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.ThreadLocalRandom;
 
-import cs455.overlay.djikstra.RoutingCache;
 import cs455.overlay.djikstra.ShortestPath;
 import cs455.overlay.transport.TCPReceiverThread;
 import cs455.overlay.transport.TCPSender;
 import cs455.overlay.transport.TCPServerThread;
 import cs455.overlay.util.Connection;
+import cs455.overlay.util.MessageNodeInputThread;
 import cs455.overlay.util.NodeRepresentation;
 import cs455.overlay.wireformats.Event;
 import cs455.overlay.wireformats.EventFactory;
@@ -44,6 +40,8 @@ public class MessagingNode implements Node{
 	private TCPServerThread node_listener;
 	//Thread that the node_listener will run in
 	private Thread node_thread;
+	//Thread to listen for user inputs
+	private MessageNodeInputThread input_listener;
 	//List of nodes that this node directly connects to. Format: <ip>:<port>
 	private String[] connections;
 	//List of all connections in the overlay with weights
@@ -56,11 +54,15 @@ public class MessagingNode implements Node{
 	//Metric tracking values
 	private int sendTracker;
 	private int receiveTracker;
+	private int relayTracker;
+	private double summation;
 	
 	public MessagingNode() {
 		all_nodes = new HashSet<NodeRepresentation>();
 		sendTracker = 0;
 		receiveTracker = 0;
+		relayTracker = 0;
+		summation = 0;
 	}
 	
 	public void onEvent(Event e) {
@@ -105,6 +107,24 @@ public class MessagingNode implements Node{
 				message = ((TaskInitiate)e).getSplitData();
 				messageNodes(Integer.parseInt(message[1]));
 				break;
+			case(6)://Message
+				message = ((Message)e).getSplitData();
+				String[] path = message[1].split("--");
+				if(path[path.length-1].equals(self)) {
+					//Message has reached it's destination
+					System.out.println("Node received message from " + path[0] + " with payload: " + message[2]);
+					receiveTracker++;
+					summation += Integer.parseInt(message[2]);
+				} else {
+					//Message needs to continue on through the network
+					for(int i = 0; i < path.length; i++) {
+						if(path[i].equals(self)) {
+							routeMessage(path[i+2], e);
+							relayTracker++;
+							break;
+						}
+					}
+				}
 			default:
 				System.out.println("ERR:MessagingNode: invalid message type");
 		
@@ -176,6 +196,24 @@ public class MessagingNode implements Node{
 		}
 	}
 	
+	private void routeMessage(String dest, Event message) {
+		TCPSender sender;
+		Socket socket;
+		
+		try {
+			socket = connectToNode(dest.split(":")[0], Integer.parseInt(dest.split(":")[1]));
+			sender = new TCPSender(socket);
+			
+			//Send the packet to continue it along the network
+			sender.sendEvent(message);
+			
+			//Connection should be closed as quickly as possible
+			socket.close();
+		} catch (IOException e) {
+			System.out.println("Could not connect to node");
+		}
+	}
+	
 	private void messageNodes(int num_rounds) {
 		TCPSender sender;
 		Socket socket;
@@ -191,7 +229,7 @@ public class MessagingNode implements Node{
 				sender = new TCPSender(socket);
 				
 				//Create new message that has the path the message the take and a random payload, and sends it to the starting node
-				sender.sendEvent(EventFactory.getInstance().createEvent("6" + "\n" + "\n" + route_calculator.getPath() + "\n" + ThreadLocalRandom.current().nextInt(-2147483648, 2147483647)));
+				sender.sendEvent(EventFactory.getInstance().createEvent("6" + "\n" + route_calculator.getPath() + "\n" + ThreadLocalRandom.current().nextInt(-2147483648, 2147483647)));
 				
 				//Connection should be closed as quickly as possible
 				socket.close();
@@ -199,7 +237,7 @@ public class MessagingNode implements Node{
 				//TODO: probably need to make this update thread-safe
 				sendTracker++;
 			} catch (IOException e) {
-				e.printStackTrace();
+				System.out.println("Could not connect to node");
 			}
 			
 		}
@@ -226,19 +264,45 @@ public class MessagingNode implements Node{
 		node_thread = new Thread(node_listener);
 		node_thread.start();
 		
+		//Start input listener thread
+		input_listener = new MessageNodeInputThread();
+		Thread input_thread = new Thread(input_listener);
+		input_thread.start();
+		
 		//Connect to registry and start registry threads
 		connectToRegistry(registry_ip, registry_port);
 		
 		//Use the socket to determine IP address and assign name to this node
 		self = registry_socket.getInetAddress().toString().substring(1) + ":" + listening_port;
 		
+		Integer new_input;
+		Event new_event;
 		while(true) {
 			try {
+				//Check if there are messages from the registry node
 				registry_message = registry_listener.get();
 				if(registry_message != null) {
 					onEvent(registry_message);
 				}
-			} catch (InterruptedException e) {
+				
+				//Check if another MessagingNode has connected and sent a message. 
+				new_event = node_listener.getEvent();
+				if(new_event != null) {
+					System.out.println("MessagingNode::start_listening: new message received");
+					//If there is, discard the socket and read the message
+					node_listener.getSocket().close();
+					onEvent(new_event);
+				}
+				
+				//Check if there are any user inputs
+				new_input = input_listener.get();
+				if(new_input != null) {
+					switch(new_input) {
+						default:
+							break;
+					}
+				}
+			} catch (InterruptedException | IOException e) {
 				e.printStackTrace();
 				return;
 			}
