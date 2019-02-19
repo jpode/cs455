@@ -44,7 +44,7 @@ public class NodeRepresentation {
 			//First check if a connection was already made with this node
 			for(int i = 0; i < connected_nodes.length; i++) {
 				 if(!(connected_nodes[i] == null) && connected_nodes[i].equals(node)) { //Connection already exists
-					 System.out.println((ip_addr + port) + " cannot establish connection with " + node.toString() + " because the connection already exists");
+					 //System.out.println((ip_addr + port) + " cannot establish connection with " + node.toString() + " because the connection already exists");
 						return false;
 					}  
 			}
@@ -58,9 +58,9 @@ public class NodeRepresentation {
 				} 
 			}
 		}
-		 System.out.println((ip_addr + port) + " cannot establish connection with " + node.toString() + " for some reason");
-		 System.out.println("INFO: connection_counter: " + connection_counter + ", connected_nodes length: " + connected_nodes.length);
-
+			for(int i = 0; i < connected_nodes.length; i++) {
+				System.out.println(connected_nodes[i].toString());
+			}
 		return false;
 	}
 	
@@ -70,6 +70,11 @@ public class NodeRepresentation {
 	
 	public int getNumConnections() {
 		return connection_counter;
+	}
+	
+	//Returns true if this node has the max number of connections
+	public boolean isMaxed() {
+		return connection_counter >= connected_nodes.length; 
 	}
 	
 	//Remove a node from this node's connection list
@@ -97,14 +102,19 @@ public class NodeRepresentation {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+		resetConnections();
+	}
+
+	//Reset the connections for this node
+	public void resetConnections() {
 		if(overlay_constructed) {
 			for(int i = 0; i < connected_nodes.length; i++) {
 				connected_nodes[i] = null;
 			}
+			connection_counter = 0;
 		}
 	}
-
+	
 	//Equals method, compares IP address and port - NOT socket
 	@Override
 	public boolean equals(Object obj) {

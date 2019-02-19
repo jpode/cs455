@@ -73,6 +73,9 @@ public class RegistryInputThread implements Runnable{
 				   queue.add(5);
 				   queue.add(Integer.parseInt(command.substring(6)));
 			   }
+		   } else if(command.toLowerCase().substring(0,5).equals("reset")){
+			   System.out.println("Resetting overlay");
+			   queue.add(6);
 		   } else {
 			   System.out.println("Invalid command. Type 'HELP' for a list of valid commands.");
 		   }

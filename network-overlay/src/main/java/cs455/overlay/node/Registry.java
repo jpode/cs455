@@ -63,9 +63,15 @@ public class Registry {
 	
 	//Overloaded method is required for request events, because a new socket is associated with the event
 	private void onEvent(Event e, Socket socket) {
-		System.out.println("Registry::onEvent: received new registration event");
-		//TODO: add error handling for reading the event instead of assuming a correct message
-		String[] data_lines = new String(e.getBytes()).split("\n");
+		String[] data_lines;
+		
+		if(e.getBytes() == null) {
+			System.out.println("ERR: received message is null, registration failed");
+			return;
+		} else {
+			 data_lines = new String(e.getBytes()).split("\n");
+		}
+		
 		System.out.println(e.getType());
 		//Create a new node representation out of the IP address, port, and socket
 		NodeRepresentation new_node = new NodeRepresentation(data_lines[1], Integer.parseInt(data_lines[2]), socket);
@@ -215,18 +221,31 @@ public class Registry {
 							break;
 						case(4): //Set up overlay
 							
-							//Change 3 to 10 later
-							if(node_registry.size() < 3) {
-								System.out.println("ERR:Registry: not enough connected nodes to set up overlay");
-								input_listener.get(); //Clear the message queue
+							if(!overlay_constructed) {
+								//Change 3 to 10 later
+								if(node_registry.size() < 3) {
+									System.out.println("ERR:Registry: not enough connected nodes to set up overlay");
+									input_listener.get(); //Clear the message queue
+								} else {
+									System.out.println("Registry: received setup overlay command");
+									setupOverlay(input_listener.get()); //Another get() is called to retrieve number of connections
+								}
 							} else {
-								System.out.println("Registry: received setup overlay command");
-								setupOverlay(input_listener.get()); //Another get() is called to retrieve number of connections
+								System.out.println("Overlay already constructed");
 							}
-							
 							break;
 						case(5): //Start messaging
 							start(input_listener.get()); //Another get() is called to retrieve number of messaging rounds
+							break;
+						case(6):
+							overlay_constructed = false;
+							connection_list = null;
+							overlay = null;
+							
+							for(NodeRepresentation node : node_registry) {
+								node.resetConnections();
+							}
+							
 							break;
 					}
 				}

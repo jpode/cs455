@@ -14,11 +14,13 @@ public class TCPReceiverThread implements Runnable{
 	private Socket socket;
 	private DataInputStream din;
 	private ConcurrentLinkedQueue<Event> queue;
+	private boolean listening;
 	
 	public TCPReceiverThread(Socket socket) throws IOException {
 		this.socket = socket;
 		din = new DataInputStream(socket.getInputStream());
 		queue = new ConcurrentLinkedQueue<Event>();
+		listening = true;
 	}
 	
 	public Socket getSocket() {
@@ -28,6 +30,10 @@ public class TCPReceiverThread implements Runnable{
 	//Nonblocking call
 	public Event get() throws InterruptedException {
 		return queue.poll();
+	}
+	
+	public boolean isListening() {
+		return listening;
 	}
 	
 	public void run() {
@@ -54,7 +60,7 @@ public class TCPReceiverThread implements Runnable{
 		}
 		
 		System.out.println("TCPReceiverThread::run: stopped running");
-
+		listening = false;
 	}
 	
 	public void kill() {
@@ -63,6 +69,7 @@ public class TCPReceiverThread implements Runnable{
 			socket.close();
 			socket = null;
 			queue.clear();
+			listening = false;
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

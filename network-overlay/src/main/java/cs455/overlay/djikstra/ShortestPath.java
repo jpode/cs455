@@ -104,9 +104,7 @@ public class ShortestPath {
 	private DjikstraNode getLeastDistanceNode(ArrayList<DjikstraNode> nodes) {
 		int min_dist = Integer.MAX_VALUE;
 		DjikstraNode min_node = null;
-		
-		System.out.println("ShortestPath::getLeastDistanceNode: node array size: " + nodes.size());
-		
+				
 		for(DjikstraNode node : nodes) {
 			if(node.getDist() < min_dist) {
 				min_dist = node.getDist();
