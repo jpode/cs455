@@ -76,9 +76,6 @@ public class MessagingNode implements Node{
 				if(((RegisterResponse)e).getStatusCode() == 0) {
 					System.out.println("MessagingNode::connectToServer: registration successful");
 					message = ((RegisterResponse)e).getSplitData();
-					for(String line : message) {
-						System.out.println(line);
-					}
 				} else {
 					System.out.println("ERR:MessagingNode::connectToServer: registration not successful; status code = " + ((RegisterResponse)e).getStatusCode());
 					registry_listener.kill();
@@ -115,6 +112,7 @@ public class MessagingNode implements Node{
 				task = new MessageTaskThread(Integer.parseInt(message[1]), all_nodes, all_connections, self);
 				Thread task_thread = new Thread(task);
 				task_thread.start();
+
 				running_task = true;
 				
 				break;
@@ -227,7 +225,8 @@ public class MessagingNode implements Node{
 	}
 
 	private void finishTask() {
-		registry_sender.sendEvent(EventFactory.getInstance().createEvent(""));
+		//registry_sender.sendEvent(EventFactory.getInstance().createEvent(""));
+		System.out.println("Finished task, sent " + sendTracker + " messages");
 	}
 	
 	private void start_listening(String registry_ip, int registry_port) {
@@ -286,12 +285,15 @@ public class MessagingNode implements Node{
 				}
 				
 				//If there is a task running, check to see if it has returned a value and therefore is finished
-				task_result = task.get();
-				if(task_result != null) {
-					//The thread will end on its own
-					sendTracker = task_result;
-					finishTask();
-					running_task = false;
+				if(running_task) {
+					task_result = task.get();
+					if(task_result != null) {
+						System.out.println("MessagingNode task finished");
+						//The thread will end on its own
+						sendTracker = task_result;
+						finishTask();
+						running_task = false;
+					}
 				}
 				
 			} catch (InterruptedException e) {

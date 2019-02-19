@@ -70,9 +70,9 @@ public class TCPServerThread implements Runnable{
 				
 				Event message;
 
-				//Wait for 100 ms for one to come, otherwise discard the connection
+				//Wait for 200 ms for one to come, otherwise discard the connection
 				long startTime = System.currentTimeMillis(); //fetch starting time
-				while(false||(System.currentTimeMillis()-startTime)<100) {
+				while(false||(System.currentTimeMillis()-startTime)<200) {
 				   try {
 					   message = request_listener.get();
 					   
@@ -86,9 +86,9 @@ public class TCPServerThread implements Runnable{
 				}
 								
 			} catch (SocketException se) {
-				System.out.println(se.getMessage());
+				se.printStackTrace();
 			} catch (IOException ioe) {
-				System.out.println(ioe.getMessage()) ;
+				ioe.printStackTrace();
 			}
 		}
 	}

@@ -43,18 +43,20 @@ public class TCPReceiverThread implements Runnable{
 			try {
 				//Blocks until a message comes in
 				dataLength = din.readInt();
-				System.out.println("TCPReceiverThread::run: received message from " + socket.getRemoteSocketAddress().toString().substring(1));
+				//System.out.println("TCPReceiverThread::run: received message from " + socket.getRemoteSocketAddress().toString().substring(1));
 				byte[] data = new byte[dataLength];
 				din.readFully(data, 0, dataLength);
-				//System.out.println("Received message: \n" + new String(data));
+				//System.out.println("DEBUG: Received message: \n" + new String(data));
 				//Add a new event created from the message to the queue
 				queue.add(EventFactory.getInstance().createEvent(new String(data)));
 				
 			} catch (SocketException se) {
 				System.out.println(se.getMessage());
+
 				break;
 			} catch (IOException ioe) {
-				System.out.println(ioe.getMessage()) ;
+				System.out.println(ioe.getMessage());
+
 				break;
 			}
 		}

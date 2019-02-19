@@ -41,6 +41,7 @@ public class ShortestPath {
 	}
 	
 	public void calculateShortestPath(String source, String sink) {
+
 		path = cache.checkForPath(source, sink);
 		if(path == null) {
 			ArrayList<DjikstraNode> nodes = new ArrayList<DjikstraNode>();
@@ -57,11 +58,9 @@ public class ShortestPath {
 					current_index = i;
 				}
 			}
-			
-			System.out.println("Starting algorithm");
-			
+						
 			DjikstraNode current_node = nodes.get(current_index);
-			
+
 			while(!nodes.isEmpty()) {
 				nodes.remove(current_node);
 				
@@ -78,7 +77,6 @@ public class ShortestPath {
 				if(current_node.toString().equals(sink)){
 					path = iteratePath(current_node);
 					cache.addToCache(path);
-					
 					return;
 				}
 			}

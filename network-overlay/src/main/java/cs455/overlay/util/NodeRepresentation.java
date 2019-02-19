@@ -58,9 +58,6 @@ public class NodeRepresentation {
 				} 
 			}
 		}
-			for(int i = 0; i < connected_nodes.length; i++) {
-				System.out.println(connected_nodes[i].toString());
-			}
 		return false;
 	}
 	

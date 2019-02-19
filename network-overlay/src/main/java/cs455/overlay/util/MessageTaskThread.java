@@ -30,6 +30,7 @@ public class MessageTaskThread implements Runnable {
 		all_connections = connections;
 		all_nodes = nodes;
 		self = node_name;
+		queue = new ConcurrentLinkedQueue<Integer>();
 	}
 
 	//Non blocking call
@@ -50,14 +51,23 @@ public class MessageTaskThread implements Runnable {
 	}
 
 	private NodeRepresentation getRandomNode() {
-		int random_index = ThreadLocalRandom.current().nextInt(0, all_nodes.size());
+		NodeRepresentation random_node;
+		int random_index;
 		
-		//Get the index - implementation is due to the use of HashSet
-		Iterator<NodeRepresentation> iter = all_nodes.iterator();
-		for (int i = 0; i < random_index; i++) {
-		    iter.next();
+		while(true) {
+			random_index = ThreadLocalRandom.current().nextInt(0, all_nodes.size());
+
+			//Get the node at the index - implementation is due to the use of HashSet
+			Iterator<NodeRepresentation> iter = all_nodes.iterator();
+			for (int i = 0; i < random_index; i++) {
+			    iter.next();
+			}
+			random_node = iter.next();
+			
+			if(!random_node.toString().equals(self)) { //If the selected node is itself, retry selection. If not, return
+				return random_node;
+			}
 		}
-		return iter.next();
 	}
 	
 	
@@ -70,7 +80,9 @@ public class MessageTaskThread implements Runnable {
 		
 		for(int i = 0; i < num_rounds; i++) {
 			try {
+				
 				NodeRepresentation sink = getRandomNode();
+				
 				route_calculator.calculateShortestPath(self, sink.toString());
 				
 				socket = connectToNode(route_calculator.getStartingNodeIP(), route_calculator.getStartingNodePort());
@@ -84,6 +96,7 @@ public class MessageTaskThread implements Runnable {
 				
 				//TODO: probably need to make this update thread-safe
 				sendTracker++;
+				//System.out.println("Successfully sent message " + (i+1) + " of " + num_rounds + " to " + sink.toString());
 			} catch (IOException e) {
 				System.out.println("Could not connect to node");
 			}
@@ -91,9 +104,12 @@ public class MessageTaskThread implements Runnable {
 		}
 		
 		queue.add(sendTracker);
+		//System.out.println("TaskThread completed task, waiting for parent thread to retrieve statistics before exiting");
 		while(!queue.isEmpty()) {
 			; //Wait until the parent threads receives the statistics before exiting
 		}
+		//System.out.println("TaskThread exiting");
+
 	}
 
 }
