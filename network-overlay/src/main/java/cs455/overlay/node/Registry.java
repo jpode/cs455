@@ -312,7 +312,9 @@ public class Registry {
 				if(tasks_completed == node_registry.size()) {
 					//Sleep for 15 seconds to ensure that all messages get delivered
 					Thread.sleep(15000);
-					messageAllNodes(EventFactory.getIip
+					messageAllNodes(EventFactory.getInstance().createEvent("8"));
+					reset();
+				}
 				
 			} catch (Exception e) {
 				e.printStackTrace();
