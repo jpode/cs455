@@ -3,65 +3,83 @@ package cs455.overlay.util;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ThreadLocalRandom;
 
+import cs455.overlay.djikstra.RoutingCache;
 import cs455.overlay.djikstra.ShortestPath;
 import cs455.overlay.transport.TCPSender;
+import cs455.overlay.wireformats.Event;
 import cs455.overlay.wireformats.EventFactory;
+import cs455.overlay.wireformats.Message;
 
 public class MessageTaskThread implements Runnable {
 	//Object to calculate the shortest path and provide the starting node
 	private ShortestPath route_calculator;
+	//Routing cache, used by route_calculator
+	private RoutingCache cache;
 	//List of all connections in the overlay with weights
 	private Connection[] all_connections;
 	//This is a HashSet because the total number of nodes in the overlay is not sent by the registry, and it avoids duplicates
 	private HashSet<NodeRepresentation> all_nodes;
+	//Pool of active connections
+	private ArrayList<NodeRepresentation> conn_pool;
 	//Name of this node
 	private String self;
-	private ConcurrentLinkedQueue<Integer> queue;
+	//Queue for after messages have been sent
+	private ConcurrentLinkedQueue<Long> statistics_queue;
+	//Queue for connections created by the task thread, which the main MessagingNode class with listen for events on
+	//TCPSender object
+	private TCPSender sender;
+	
 	private int num_rounds;
-	private int sendTracker;
+	private long sendTracker;
+	private long sendSummation;
+	private boolean done;
 
-	public MessageTaskThread(int rounds, HashSet<NodeRepresentation> nodes, Connection[] connections, String node_name) {
-		num_rounds = rounds;
-		all_connections = connections;
-		all_nodes = nodes;
+	//Task thread sends messages either by creating them, or by routing them when instructed to do so by the MessagingNode class
+	//Does not listen for messages from connections
+	public MessageTaskThread(int num_rounds, ArrayList<NodeRepresentation> connected_nodes, HashSet<NodeRepresentation> all_nodes, Connection[] all_connections, String node_name, RoutingCache cache) {
+		this.num_rounds = num_rounds;
+		this.all_connections = all_connections;
+		this.all_nodes = all_nodes;
+		this.conn_pool = connected_nodes;
 		self = node_name;
-		queue = new ConcurrentLinkedQueue<Integer>();
-	}
+		this.cache = cache;
+		
+		statistics_queue = new ConcurrentLinkedQueue<Long>();
 
-	//Non blocking call
-	public Integer get() throws InterruptedException {
-		return queue.poll();
+		sendTracker = 0;
+		sendSummation = 0;
+		
+		done = false;
 	}
 	
-	private Socket connectToNode(String addr, Integer port) {
-		try {
-			Socket result = new Socket(addr, port);
-			return result;
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+	//Non blocking call
+	public Long getStatistics() throws InterruptedException {
+		if(done) {
+			return statistics_queue.poll();
+		} 
 		return null;
 	}
-
+	
+	//Selects a random node to be sent a message based on the number of nodes in the overlay
 	private NodeRepresentation getRandomNode() {
 		NodeRepresentation random_node;
 		int random_index;
 		
 		while(true) {
 			random_index = ThreadLocalRandom.current().nextInt(0, all_nodes.size());
-
 			//Get the node at the index - implementation is due to the use of HashSet
 			Iterator<NodeRepresentation> iter = all_nodes.iterator();
+			
 			for (int i = 0; i < random_index; i++) {
 			    iter.next();
 			}
+			
 			random_node = iter.next();
 			
 			if(!random_node.toString().equals(self)) { //If the selected node is itself, retry selection. If not, return
@@ -70,45 +88,50 @@ public class MessageTaskThread implements Runnable {
 		}
 	}
 	
+	//Sends messages to other nodes by checking for an existing connection or creating on if it does not exist
+	public synchronized void sendMessage(NodeRepresentation node, Event message) {
+		
+		sender = new TCPSender(conn_pool.get(conn_pool.indexOf(node)).getSocket());
+		sender.sendEvent(message);
+	}
 	
+	//Run method creates new messages and passes them off to the sendMessage method, and when finished creating messages it will push the statistics variables into a queue for retrieval
 	@Override
 	public void run() {
-		TCPSender sender;
-		Socket socket;
-		
-		route_calculator = new ShortestPath(all_connections);
-		
+		int payload;
+
+		route_calculator = new ShortestPath(all_connections, cache);
+		NodeRepresentation node;
+		String debug_sink;
 		for(int i = 0; i < num_rounds; i++) {
-			try {
-				
-				NodeRepresentation sink = getRandomNode();
-				
-				route_calculator.calculateShortestPath(self, sink.toString());
-				
-				socket = connectToNode(route_calculator.getStartingNodeIP(), route_calculator.getStartingNodePort());
-				sender = new TCPSender(socket);
-				
-				//Create new message that has the path the message the take and a random payload, and sends it to the starting node
-				sender.sendEvent(EventFactory.getInstance().createEvent("6" + "\n" + route_calculator.getPath() + "\n" + ThreadLocalRandom.current().nextInt(-2147483648, 2147483647)));
-				
-				//Connection should be closed as quickly as possible
-				socket.close();
-				
-				//TODO: probably need to make this update thread-safe
-				sendTracker++;
-				//System.out.println("Successfully sent message " + (i+1) + " of " + num_rounds + " to " + sink.toString());
-			} catch (IOException e) {
-				System.out.println("Could not connect to node");
-			}
+			//This is the sink
+			node = getRandomNode();
+			debug_sink = node.toString();
+			route_calculator.calculateShortestPath(self, node.toString());
 			
+			//This is the starting node
+			node = new NodeRepresentation(route_calculator.getStartingNodeIP(), route_calculator.getStartingNodePort());
+			
+			//Create random payload
+			payload = ThreadLocalRandom.current().nextInt(-2147483648, 2147483647);
+			
+			//Create new message that has the path the message the take and a random payload, and sends it to the starting node				
+			sendMessage(node, EventFactory.getInstance().createEvent("6" + "\n" + route_calculator.getPath() + "\n" + payload));
+							
+			sendTracker++;
+			sendSummation += payload;
+			//System.out.println("Successfully sent message " + (i+1) + " of " + num_rounds + " to " + debug_sink);
 		}
 		
-		queue.add(sendTracker);
-		//System.out.println("TaskThread completed task, waiting for parent thread to retrieve statistics before exiting");
-		while(!queue.isEmpty()) {
-			; //Wait until the parent threads receives the statistics before exiting
+		statistics_queue.add(sendTracker);
+		statistics_queue.add(sendSummation);
+		
+		done = true;
+		
+		//System.out.println("TaskThread completed task, waiting for parent thread to interrupt");
+		while(true) {
+			; //Because the task thread is responsible for routing messages, it does not end until interrupted
 		}
-		//System.out.println("TaskThread exiting");
 
 	}
 

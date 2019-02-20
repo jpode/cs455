@@ -17,14 +17,27 @@ public class TCPReceiverThread implements Runnable{
 	private boolean listening;
 	
 	public TCPReceiverThread(Socket socket) throws IOException {
+		//System.out.println("TCPReceiverThread: new TCPReceiver created");
 		this.socket = socket;
 		din = new DataInputStream(socket.getInputStream());
 		queue = new ConcurrentLinkedQueue<Event>();
 		listening = true;
 	}
 	
+	public TCPReceiverThread(Socket socket, DataInputStream datastream) throws IOException {
+		//System.out.println("TCPReceiverThread: new TCPReceiver created");
+		this.socket = socket;
+		din = datastream;
+		queue = new ConcurrentLinkedQueue<Event>();
+		listening = true;
+	}
+	
 	public Socket getSocket() {
 		return socket;
+	}
+	
+	public DataInputStream getDin() {
+		return din;
 	}
 	
 	//Nonblocking call
@@ -38,15 +51,18 @@ public class TCPReceiverThread implements Runnable{
 	
 	public void run() {
 		int dataLength;
-		System.out.println("TCPReceiverThread::run: starting...");
-		while (socket != null) {
+		//System.out.println("TCPReceiverThread::run: listening to "  + socket.getRemoteSocketAddress().toString().substring(1));
+		//System.out.println("TCPReceiverThread::run: socket closed: " + socket.isClosed());
+
+		while (socket != null && !socket.isClosed() && listening) {
 			try {
 				//Blocks until a message comes in
 				dataLength = din.readInt();
-				System.out.println("TCPReceiverThread::run: received message of length " + dataLength + " from " + socket.getRemoteSocketAddress().toString().substring(1));
+				//System.out.println("TCPReceiverThread::run: expecting message of length " + dataLength + " from " + socket.getRemoteSocketAddress().toString().substring(1));
 				byte[] data = new byte[dataLength];
+				//Blocks until message comes in
 				din.readFully(data, 0, dataLength);
-				System.out.println("DEBUG: Received message: \n" + new String(data));
+				//System.out.println("TCPReceiverThread::run: Received message from " + socket.getRemoteSocketAddress().toString().substring(1) + ": " + new String(data));
 				//Add a new event created from the message to the queue
 				queue.add(EventFactory.getInstance().createEvent(new String(data)));
 				
@@ -57,14 +73,6 @@ public class TCPReceiverThread implements Runnable{
 				//ignore
 			}
 		}
-		
-		//Close data input stream
-		try {
-			din.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
 		listening = false;
 		
 		//wait until the queue is consumed to stop running
@@ -72,11 +80,17 @@ public class TCPReceiverThread implements Runnable{
 			;
 		}
 		
-		System.out.println("TCPReceiverThread::run: stopped running");
+		//System.out.println("TCPReceiverThread::run: queue emptied, stopped running");
 
 	}
-	
+	//Kills the listener and queue, but not the socket
 	public void kill() {
+		queue.clear();
+		listening = false;
+	}
+	
+	//Kills everything
+	public void killAll() {
 		try {
 			din.close();
 			socket.close();

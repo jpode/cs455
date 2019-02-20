@@ -11,8 +11,11 @@ public class ShortestPath {
 	private String path;
 	private RoutingCache cache;
 	
-	public ShortestPath(Connection[] connections) {
+	public ShortestPath(Connection[] connections, RoutingCache route_cache) {
 		connection_list = connections;
+		cache = route_cache;
+
+		path = "";
 		all_nodes = new ArrayList<String>();
 		
 		for(Connection conn : connection_list) {
@@ -25,7 +28,6 @@ public class ShortestPath {
 			}
 		}
 		
-		cache = new RoutingCache();
 	}
 	
 	public String getStartingNodeIP() {

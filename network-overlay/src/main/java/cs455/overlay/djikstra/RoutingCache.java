@@ -9,8 +9,17 @@ public class RoutingCache {
 		cache = new ArrayList<String>();
 	}
 	
-	public void addToCache(String path) {
+	public synchronized void addToCache(String path) {
 		cache.add(path);
+	}
+	
+	public synchronized String getAllRoutes() {
+		String result = "";
+		for(String route : cache) {
+			result += route + "\n";
+		}
+		
+		return result;
 	}
 	
 	public String checkForPath(String source, String sink) {

@@ -1,5 +1,6 @@
 package cs455.overlay.util;
 
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.Socket;
 
@@ -10,6 +11,7 @@ public class NodeRepresentation {
 	private String ip_addr;
 	private Integer port;
 	private Socket self_socket;
+	private DataInputStream din;
 	private NodeRepresentation[] connected_nodes;
 	private boolean overlay_constructed; //True if the overlay is being/has been constructed
 	private int connection_counter;
@@ -91,13 +93,20 @@ public class NodeRepresentation {
 		return self_socket;
 	}
 	
+	public DataInputStream getDataInputStream() {
+		return din;
+	}
+	
 	//Kill this node's socket and remove connections
 	public void kill() {
 		
 		try {
+			if(din != null) {
+				din.close();
+			}
 			self_socket.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			//ignore
 		}
 		resetConnections();
 	}
@@ -112,14 +121,22 @@ public class NodeRepresentation {
 		}
 	}
 	
-	//Equals method, compares IP address and port - NOT socket
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((ip_addr == null) ? 0 : ip_addr.hashCode());
+		result = prime * result + ((port == null) ? 0 : port.hashCode());
+		return result;
+	}
+
 	@Override
 	public boolean equals(Object obj) {
 		if (this == obj)
 			return true;
 		if (obj == null)
 			return false;
-		if (!(obj instanceof NodeRepresentation))
+		if (getClass() != obj.getClass())
 			return false;
 		NodeRepresentation other = (NodeRepresentation) obj;
 		if (ip_addr == null) {
@@ -137,5 +154,9 @@ public class NodeRepresentation {
 	
 	public String toString() {
 		return ip_addr + ":" + port;
+	}
+
+	public void addSocket(Socket socket) {
+		self_socket = socket;
 	}
 }

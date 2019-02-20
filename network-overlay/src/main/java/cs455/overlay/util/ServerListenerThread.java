@@ -1,5 +1,6 @@
 package cs455.overlay.util;
 
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.ArrayList;
@@ -9,7 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import cs455.overlay.transport.TCPReceiverThread;
 import cs455.overlay.wireformats.Event;
 
-public class RegistryMessageThread implements Runnable{
+public class ServerListenerThread implements Runnable{
 	private ArrayList<TCPReceiverThread> receiver_pool;
 	//This is a queue that new connections are added to before being added to the main pool
 	//This prevents ConcurrentModificationExceptions, as otherwise new connections could be added while the array is being iterated through
@@ -23,57 +24,86 @@ public class RegistryMessageThread implements Runnable{
 		return queue.poll();
 	}
 	
-	public RegistryMessageThread() {
+	public ServerListenerThread() {
 		receiver_pool = new ArrayList<TCPReceiverThread>();
 		receiver_pool_queue = new ArrayList<TCPReceiverThread>();
 		thread_pool = new ArrayList<Thread>();
 		queue = new ConcurrentLinkedQueue<Event>();
 	}
 	
-	//Takes a socket and creates a new thread that will listen for messages from the socket
+	//Takes a receiver and a thread to listen for messages from
 	//Synchronized to avoid ConcurrentModificationExceptions
-	public synchronized void addConnection(Socket new_socket) {
-		try {
-			TCPReceiverThread new_receiver = new TCPReceiverThread(new_socket);
-			receiver_pool_queue.add(new_receiver);
-			
-			Thread new_thread = new Thread(new_receiver);
-			new_thread.start();
-			
-			thread_pool.add(new_thread);
-			
-			
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+	public synchronized void addConnection(TCPReceiverThread rec, Thread thd) {
+		//System.out.println("RegistryMessageThread: adding new connection");
+		
+		receiver_pool_queue.add(rec);
+		thread_pool.add(thd);
+		
 	}
 	
-	public void closeConnection(Socket socket) {
+	public synchronized void addConnection(Socket socket) {
+		TCPReceiverThread rec;
+		try {
+			rec = new TCPReceiverThread(socket);
+			
+			Thread thd = new Thread(rec);
+			thd.start();
+			
+			receiver_pool_queue.add(rec);
+			thread_pool.add(thd);
+		} catch (IOException e) {
+			//e.printStackTrace
+		}
+
+	}
+	
+	public synchronized void closeConnection(Socket socket) {
 		for(int i = 0; i < receiver_pool.size(); i++) {
 			if(receiver_pool.get(i).getSocket() == socket) {
-				receiver_pool.get(i).kill();
+				
+				thread_pool.get(i).interrupt();
+				thread_pool.remove(i);
+				
+				receiver_pool.get(i).killAll(); //Closes the socket
 				receiver_pool.remove(i);
+				
+
 			}
 		}
 	}
 	
-	public void kill() { 
+	public synchronized void kill() { 
 		running.set(false); //Stop the thread from running
+		
+		for(Thread thread : thread_pool) {
+			thread.interrupt();
+		}
 		
 		for(TCPReceiverThread receiver : receiver_pool) {
 				receiver.kill();
 				receiver_pool.remove(receiver);
 		}
+		//System.out.println("RegistryMessageThread::kill: thread killed successfully");
+	}
+	
+	public synchronized void clear() {
 		
-		for(Thread thread : thread_pool) {
-			thread.interrupt();
+		for(Thread thd : thread_pool) {
+			thd.interrupt();
+		}	
+		
+		for(TCPReceiverThread receiver : receiver_pool) {
+			receiver.kill();
+			receiver_pool.remove(receiver);
 		}
-		System.out.println("RegistryMessageThread::kill: thread killed successfully");
+		
+
 	}
 	
 	//Synchronized to avoid ConcurrentModificationExceptions
 	private synchronized void loadConnections(){
 		if(!receiver_pool_queue.isEmpty()) {
+			//System.out.println("RegistryMessageThread: loaded new connections");
 			receiver_pool.addAll(receiver_pool_queue);
 			receiver_pool_queue.clear();
 		}
@@ -88,11 +118,11 @@ public class RegistryMessageThread implements Runnable{
 			loadConnections();
 			
 			//Loop through pool and check for new events
-			for(TCPReceiverThread thread : receiver_pool) {
+			for(TCPReceiverThread receiver : receiver_pool) {
 				try {
-					new_event = thread.get();
+					new_event = receiver.get();
 					if(new_event != null) {
-						System.out.println("RegistryMessageThread: new event received");
+						//System.out.println("RegistryMessageThread: new event received");
 						queue.add(new_event); //If there is an Event to collect from one of the listening threads, add it to the queue. 
 					}
 				} catch (InterruptedException e) {
@@ -102,5 +132,7 @@ public class RegistryMessageThread implements Runnable{
 		}
 		
 	}
+
+
 
 }

@@ -13,23 +13,26 @@ public class TCPSender {
 		try {
 			dout = new DataOutputStream(socket.getOutputStream());
 		} catch (IOException e) {
-			System.out.println("DEBUG:TCPSender: error getting DataOutputStream from socket ");
+			//System.out.println("DEBUG:TCPSender: error getting DataOutputStream from socket ");
 			e.printStackTrace();
 		}
 	}
 	
 	public void sendEvent(Event e) {
 		try {
+			//System.out.println("DEBUG: message to send: \n" + new String(e.getBytes()));
 			sendData(e.getBytes());
+			//System.out.println("DEBUG: message sent");
 		} catch (IOException e1) {
-			System.out.println("DEBUG:TCPSender: error sending data ");
+			//System.out.println("DEBUG:TCPSender: error sending data ");
 			e1.printStackTrace();
 		}
 	}
 	
 	private void sendData(byte[] dataToSend) throws IOException {
-		System.out.println("TCPSender: sending new message...");
 		int dataLength = dataToSend.length;
+		//System.out.println("TCPSender: sending message, total length = " + dataLength);
+
 		dout.writeInt(dataLength);
 		dout.write(dataToSend, 0, dataLength);
 		dout.flush();
