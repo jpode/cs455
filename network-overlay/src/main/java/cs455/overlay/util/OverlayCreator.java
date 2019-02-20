@@ -22,7 +22,7 @@ public class OverlayCreator {
 		 *After the overlay is successfully constructed, each node needs to be send a message with its connections
 		 */
 		boolean overlay_constructed = false;
-
+		
 		while(!overlay_constructed) {
 						
 			for(NodeRepresentation node : node_registry) {
@@ -44,7 +44,7 @@ public class OverlayCreator {
 			if(!construction_failure) {
 				overlay_constructed = true;
 			} else {
-				//System.out.println("OverlayCreator: overlay construction failed, resetting and trying again...");
+				System.out.println("OverlayCreator: overlay construction failed, resetting and trying again...");
 				connection_list.clear();
 				for(NodeRepresentation node : node_registry) {
 					node.resetConnections();
@@ -56,7 +56,7 @@ public class OverlayCreator {
 		//Send nodes a message of their connections
 		for(NodeRepresentation node : node_registry) {
 			//Send out connection list to the current node to construct actual overlay connections
-			try {
+
 				TCPSender sender = new TCPSender(node.getSocket());
 				String message_data = "3" + "\n" + node.getNumConnections() + "\n";
 								
@@ -65,9 +65,6 @@ public class OverlayCreator {
 				}
 
 				sender.sendEvent(EventFactory.getInstance().createEvent(message_data));		
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
 		}
 		
 		return connection_list.toArray(new Connection[0]);

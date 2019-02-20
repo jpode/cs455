@@ -82,6 +82,7 @@ public class RegistryMessageThread implements Runnable{
 	//The run method of this thread loops through the connection thread pool to see if any messages have been received
 	public void run() {
 		running.set(true);
+		Event new_event;
 		while(running.get()) {
 			//Add any new connections to the pool
 			loadConnections();
@@ -89,8 +90,10 @@ public class RegistryMessageThread implements Runnable{
 			//Loop through pool and check for new events
 			for(TCPReceiverThread thread : receiver_pool) {
 				try {
-					if(thread.get() != null) {
-						queue.add(thread.get()); //If there is an Event to collect from one of the listening threads, add it to the queue. 
+					new_event = thread.get();
+					if(new_event != null) {
+						System.out.println("RegistryMessageThread: new event received");
+						queue.add(new_event); //If there is an Event to collect from one of the listening threads, add it to the queue. 
 					}
 				} catch (InterruptedException e) {
 					e.printStackTrace();

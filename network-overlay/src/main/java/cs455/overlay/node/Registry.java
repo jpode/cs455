@@ -39,10 +39,13 @@ public class Registry {
 	private OverlayCreator overlay;
 	//Indicates that the overlay has been created for the current session
 	private boolean overlay_constructed;
+	//Number of tasks completed for the current message session
+	private int tasks_completed;
 	
 	public Registry() {
 		node_registry = new ArrayList<NodeRepresentation>();
 		overlay_constructed = false;
+		tasks_completed = 0;
 	}
 	
 	private void onEvent(Event e) {
@@ -52,6 +55,7 @@ public class Registry {
 				deregister(new NodeRepresentation(e.getSplitData()[0], Integer.parseInt(e.getSplitData()[1])));
 				break;
 			case(7): //TaskComplete
+				tasks_completed++;
 				break;
 			case(9): //TrafficSummary
 				break;
@@ -81,20 +85,18 @@ public class Registry {
 		
 
 		//Send registration response to the node
-		try {
 			System.out.println("Sending response to client");
 			TCPSender response_sender = new TCPSender(socket);
 			response_sender.sendEvent(EventFactory.getInstance().createEvent("1" + "\n" + "0" + "\n" + "Registration successful"));
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
 	}
 	
 	//Request to register node. Fails if node is already registered, otherwise registers
 	private void register(NodeRepresentation node) {
 		for(NodeRepresentation check_node : node_registry) {
 			if(node.equals(check_node)) {
-				System.out.println("ERR::Registry::register: registration of new node unsuccessful");	
+				System.out.println("ERR::Registry::register: registration of new node unsuccessful as node is already registered");
+				System.out.println("\t Registered Node: " + check_node.toString());
+				System.out.println("\t Duplicated Node: " + node.toString());
 				return;
 			}
 		}
@@ -214,10 +216,18 @@ public class Registry {
 							listMessageNodes();
 							break;
 						case(2): //List link weights
-							listWeights();
+							if(overlay_constructed) {
+								listWeights();
+							} else {
+								System.out.println("Overlay not constructed");
+							}
 							break;
 						case(3): //Send link weights to overlay
-							sendOverlayLinkWeights();
+							if(overlay_constructed) {
+								sendOverlayLinkWeights();
+							} else {
+								System.out.println("Overlay not constructed");
+							}
 							break;
 						case(4): //Set up overlay
 							
@@ -238,6 +248,7 @@ public class Registry {
 							start(input_listener.get()); //Another get() is called to retrieve number of messaging rounds
 							break;
 						case(6):
+							System.out.println("Resetting registry...");
 							overlay_constructed = false;
 							connection_list = null;
 							overlay = null;
@@ -246,6 +257,7 @@ public class Registry {
 								node.resetConnections();
 							}
 							
+							System.out.println("Registry reset...");
 							break;
 					}
 				}
@@ -254,6 +266,12 @@ public class Registry {
 				new_event = server_listener.get();
 				if(new_event != null) {
 					onEvent(new_event);
+				}
+				
+				//Check if the number of tasks completed equals the size of the registry, meaning the message session is done
+				if(tasks_completed == node_registry.size()) {
+					messageAllNodes(EventFactory.getInstance().createEvent("8"));
+					tasks_completed = 0; //Reset so the traffic summary is not requested again
 				}
 				
 			} catch (Exception e) {
@@ -265,12 +283,8 @@ public class Registry {
 	
 	private void messageAllNodes(Event e) {
 		for(NodeRepresentation node : node_registry) {
-			try {
 				TCPSender sender = new TCPSender(node.getSocket());
 				sender.sendEvent(e);
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
 		}
 	}
 	

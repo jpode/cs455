@@ -42,9 +42,9 @@ public class EventFactory {
 			case(6): //Message: node to node
 				return new Message(lines[1], Integer.parseInt(lines[2]));
 			case(7): //TaskComplete: node to registry
-				return null;
+				return new TaskComplete(lines[1], Integer.parseInt(lines[2]));
 			case(8): // PullTrafficSummary: registry to node
-				return null;
+				return new PullTrafficSummary();
 			case(9): // TrafficSummary: node to registry
 				return null;
 			default:

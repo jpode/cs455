@@ -58,7 +58,7 @@ public class ShortestPath {
 					current_index = i;
 				}
 			}
-						
+
 			DjikstraNode current_node = nodes.get(current_index);
 
 			while(!nodes.isEmpty()) {
@@ -70,7 +70,7 @@ public class ShortestPath {
 						nodes.get(nodes.indexOf(adj_node)).setPrev(current_node, adj_node.getDist());
 					}
 				}
-				
+
 				current_node = getLeastDistanceNode(nodes);
 
 				//Current node is the sink, at which point the algorithm is done

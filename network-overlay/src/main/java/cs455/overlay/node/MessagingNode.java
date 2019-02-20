@@ -136,6 +136,8 @@ public class MessagingNode implements Node{
 				}
 				
 				break;
+			case(8)://PullTrafficSummary
+				System.out.println("Pulling traffic summary...");
 			default:
 				System.out.println("ERR:MessagingNode: invalid message type");		
 		}
@@ -158,7 +160,7 @@ public class MessagingNode implements Node{
 				registry_sender = new TCPSender(registry_socket);
 				
 				//Attempt to register with the server
-				registry_sender.sendEvent(EventFactory.getInstance().createEvent(new String("0" + "\n" + registry_socket.getInetAddress().toString().substring(1) + "\n" + listening_port)));
+				registry_sender.sendEvent(EventFactory.getInstance().createEvent(new String("0" + "\n" + registry_socket.getLocalAddress().toString().substring(1) + "\n" + listening_port)));
 				
 				//Check for for a registration confirmation message
 				Event message;
@@ -225,8 +227,8 @@ public class MessagingNode implements Node{
 	}
 
 	private void finishTask() {
-		//registry_sender.sendEvent(EventFactory.getInstance().createEvent(""));
 		System.out.println("Finished task, sent " + sendTracker + " messages");
+		registry_sender.sendEvent(EventFactory.getInstance().createEvent(new String("7" + "\n" + registry_socket.getLocalAddress().toString().substring(1) + "\n" + listening_port)));
 	}
 	
 	private void start_listening(String registry_ip, int registry_port) {
@@ -248,7 +250,7 @@ public class MessagingNode implements Node{
 		connectToRegistry(registry_ip, registry_port);
 		
 		//Use the socket to determine IP address and assign name to this node
-		self = registry_socket.getInetAddress().toString().substring(1) + ":" + listening_port;
+		self = registry_socket.getLocalAddress().toString().substring(1) + ":" + listening_port;
 		
 		Integer new_input;
 		Integer task_result;
@@ -305,7 +307,7 @@ public class MessagingNode implements Node{
 
 	public static void main(String[] args) {
 		MessagingNode node = new MessagingNode();
-		node.start_listening("127.0.0.1", 5001);
+		node.start_listening("concord.cs.colostate.edu", 5001);
 		System.out.println("Node no longer connected to server, terminating.");
 		System.exit(1);
 	}
