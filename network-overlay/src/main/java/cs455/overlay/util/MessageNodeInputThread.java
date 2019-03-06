@@ -33,9 +33,6 @@ public class MessageNodeInputThread  implements Runnable{
 			   System.out.println("print-shortest-path");
 			   System.out.println("exit-overlay");
 			   continue;
-		   } else if(command.toLowerCase().equals("quit") || command.toLowerCase().equals("kill")){
-			   queue.add(-1);
-			   return;
 		   } else if(command.length() < 5){
 			   System.out.println("Invalid command. Type 'HELP' for a list of valid commands.");
 			   continue;
@@ -43,9 +40,12 @@ public class MessageNodeInputThread  implements Runnable{
 		
 		   if(command.toLowerCase().equals("print-shortest-path")) {
 			   System.out.println("Printing calculated paths:");
-			   queue.add(1);
+			   queue.add(0);
 		   } else if(command.toLowerCase().equals("exit-overlay")) {
 			   System.out.println("Exiting overlay");
+			   queue.add(1);
+		   } else if(command.toLowerCase().equals("send-test-message")) {
+			   System.out.println("sending test message to connected nodes");
 			   queue.add(2);
 		   } else {
 			   System.out.println("Invalid command. Type 'HELP' for a list of valid commands.");

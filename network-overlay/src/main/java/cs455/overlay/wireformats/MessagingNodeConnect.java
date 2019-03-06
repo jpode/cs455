@@ -1,11 +1,11 @@
 package cs455.overlay.wireformats;
 
-public class Register implements Event{
-	private final int MESSAGE_TYPE = 0;
+public class MessagingNodeConnect implements Event{
+	private final int MESSAGE_TYPE = 10;
 	private String ip_address;
 	private int port_number;
 	
-	public Register(String ip, int port){
+	public MessagingNodeConnect(String ip, int port){
 		ip_address = ip;
 		port_number = port;
 	}

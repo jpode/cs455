@@ -11,8 +11,11 @@ public class ShortestPath {
 	private String path;
 	private RoutingCache cache;
 	
-	public ShortestPath(Connection[] connections) {
+	public ShortestPath(Connection[] connections, RoutingCache route_cache) {
 		connection_list = connections;
+		cache = route_cache;
+
+		path = "";
 		all_nodes = new ArrayList<String>();
 		
 		for(Connection conn : connection_list) {
@@ -25,7 +28,6 @@ public class ShortestPath {
 			}
 		}
 		
-		cache = new RoutingCache();
 	}
 	
 	public String getStartingNodeIP() {
@@ -58,7 +60,7 @@ public class ShortestPath {
 					current_index = i;
 				}
 			}
-						
+
 			DjikstraNode current_node = nodes.get(current_index);
 
 			while(!nodes.isEmpty()) {
@@ -70,7 +72,7 @@ public class ShortestPath {
 						nodes.get(nodes.indexOf(adj_node)).setPrev(current_node, adj_node.getDist());
 					}
 				}
-				
+
 				current_node = getLeastDistanceNode(nodes);
 
 				//Current node is the sink, at which point the algorithm is done

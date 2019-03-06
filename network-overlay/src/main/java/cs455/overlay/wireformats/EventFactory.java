@@ -42,13 +42,17 @@ public class EventFactory {
 			case(6): //Message: node to node
 				return new Message(lines[1], Integer.parseInt(lines[2]));
 			case(7): //TaskComplete: node to registry
-				return null;
+				return new TaskComplete(lines[1], Integer.parseInt(lines[2]));
 			case(8): // PullTrafficSummary: registry to node
-				return null;
+				return new PullTrafficSummary();
 			case(9): // TrafficSummary: node to registry
-				return null;
+				return new TrafficSummary(lines[1], Integer.parseInt(lines[2]), Integer.parseInt(lines[3]), Long.parseLong(lines[4]), Integer.parseInt(lines[5]), Long.parseLong(lines[6]), Integer.parseInt(lines[7]));
+			case(10)://MessagingNodeConnect
+				return new MessagingNodeConnect(lines[1], Integer.parseInt(lines[2]));
+			case(11)://TestMessage
+				return new TestMessage();
 			default:
-				System.out.println("EventFactory::handlePacket: packet type unrecognized");
+				//System.out.println("EventFactory::handlePacket: packet type unrecognized");
 				return null;
 		}
 	}

@@ -1,13 +1,11 @@
 package cs455.overlay.wireformats;
 
-public class PullTrafficSummary implements Event {
-	final int MESSAGE_TYPE = 8;
-	
-	public PullTrafficSummary() {}
+public class TestMessage implements Event{
+	private final int MESSAGE_TYPE = 11;
 
 	@Override
 	public int getType() {
-		return MESSAGE_TYPE;
+		return  MESSAGE_TYPE;
 	}
 
 	@Override
@@ -19,6 +17,7 @@ public class PullTrafficSummary implements Event {
 	@Override
 	public String[] getSplitData() {
 		// TODO Auto-generated method stub
-		return new String(Integer.toString(MESSAGE_TYPE)).split("\n"); //Will be an array of size 1
+		return new String(Integer.toString(MESSAGE_TYPE)).split("\n");
 	}
+
 }

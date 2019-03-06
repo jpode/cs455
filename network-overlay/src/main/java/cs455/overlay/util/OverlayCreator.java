@@ -22,7 +22,7 @@ public class OverlayCreator {
 		 *After the overlay is successfully constructed, each node needs to be send a message with its connections
 		 */
 		boolean overlay_constructed = false;
-
+		
 		while(!overlay_constructed) {
 						
 			for(NodeRepresentation node : node_registry) {
@@ -43,8 +43,9 @@ public class OverlayCreator {
 			
 			if(!construction_failure) {
 				overlay_constructed = true;
+				//System.out.println("DEBUG:OverlayCreator: overlay construction succeeded");
 			} else {
-				//System.out.println("OverlayCreator: overlay construction failed, resetting and trying again...");
+				//System.out.println("DEBUG:OverlayCreator: overlay construction failed, resetting and trying again...");
 				connection_list.clear();
 				for(NodeRepresentation node : node_registry) {
 					node.resetConnections();
@@ -54,9 +55,10 @@ public class OverlayCreator {
 		}
 		
 		//Send nodes a message of their connections
+		//System.out.println("DEBUG:OverlayCreator: sending connections to nodes");
 		for(NodeRepresentation node : node_registry) {
 			//Send out connection list to the current node to construct actual overlay connections
-			try {
+
 				TCPSender sender = new TCPSender(node.getSocket());
 				String message_data = "3" + "\n" + node.getNumConnections() + "\n";
 								
@@ -65,11 +67,9 @@ public class OverlayCreator {
 				}
 
 				sender.sendEvent(EventFactory.getInstance().createEvent(message_data));		
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
 		}
 		
+		//System.out.println("DEBUG:OverlayCreator: returning");
 		return connection_list.toArray(new Connection[0]);
 	}
 
@@ -77,8 +77,16 @@ public class OverlayCreator {
 	//Node class ensures that a single node does not receive more than the indicated number of connections
 	private boolean generateConnections(NodeRepresentation node, ArrayList<NodeRepresentation> node_registry, int num_connections) {
 		int node_index = node_registry.indexOf(node);
+		int counter = 0; //Counter used to exit infinite loops and retry creating the overlay. TODO: improve algorithm to avoid this hack
+		
 		for(int i = node.getNumConnections() + 1; i <= num_connections; i++) {
+			if(counter >= 100) {
+				break;
+			} else {
+				counter++;
+			}
 			
+			//System.out.println("DEBUG:OverlayCreator: generating connections for node " + i);
 			//If the number of maxed nodes is one less than the length of the registry, the node can't add any connections
 			//If the node doesn't already have connections, it will be an island and the overlay will have to be constructed again
 			if(maxed_nodes != node_registry.size() - 1) {
