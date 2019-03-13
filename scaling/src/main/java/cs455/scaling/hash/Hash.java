@@ -3,6 +3,7 @@ package cs455.scaling.hash;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Random;
 
 public class Hash {
 
@@ -10,6 +11,6 @@ public class Hash {
 		 MessageDigest digest = MessageDigest.getInstance("SHA1");
 		 byte[] hash = digest.digest(data);
 		 BigInteger hashInt = new BigInteger(1, hash);
-		 return hashInt.toString(16);
-		}
+		 return String.format("%040x", hashInt);		 
+	}
 }

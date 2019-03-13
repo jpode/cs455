@@ -14,5 +14,11 @@ public class TestTask implements Task{
 		
 	}
 
+	@Override
+	public int getId() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
 
 }
