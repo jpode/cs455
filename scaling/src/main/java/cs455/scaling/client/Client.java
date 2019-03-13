@@ -12,14 +12,24 @@ import cs455.scaling.hash.Hash;
 
 public class Client {
 	
+	//Server hostname
 	private String server_host;
+	//Server port number
 	private int server_port;
+	//Number of messages to be send per second, specified by user
 	private long message_rate;
+	//Channel connected to the server to use for reading/writing messages
 	private SocketChannel client;
+	//Runnable that controls sending messages to the server, requires a specified message rate
 	private SenderThread sender;
+	//Thread to run the sender object
 	private Thread sender_thread;
+	//List of the hash codes for each message that has been sent to the server, items are removed upon receiving
+	// a corresponding hash code from the server
 	private ConcurrentLinkedQueue<String> hash_codes;
+	//Runnable that computes and displays statistics over the last 20 seconds of operatoin
 	private ClientStatistics stats;
+	//Thread to run the statistics object
 	private Thread stats_thread;
 	
 	public Client(String server_host, int server_port, long message_rate) {
@@ -33,6 +43,7 @@ public class Client {
 		stats_thread.start();
 	}
 	
+	//Attempt to create a SocketChannel connection to the server using the given hostname and port
 	public void connect() {
 		try {
 			System.out.println("Client: Connecting to " + server_host + " on port " + server_port); 
@@ -44,16 +55,18 @@ public class Client {
 			}
 
 		} catch (IOException e) {
-			e.printStackTrace();
+			System.out.println("Client: connection to server failed");
 		}
 	}
 	
+	//Start a separate thread for sending messages to the server
 	public void startMessaging() {
 		sender = new SenderThread(message_rate, client, hash_codes, stats);
 		sender_thread = new Thread(sender);
 		sender_thread.start();
 	}
 	
+	//Continuously listens for and processes messages coming from the server
 	public void listen() {
 		ByteBuffer buffer = ByteBuffer.allocate(8000);
 		Hash hash = new Hash();
@@ -77,11 +90,9 @@ public class Client {
 					
 					buffer.clear();
 					
-					//System.out.println("Server response: " + new String(response));
+					//If the received hash code matches one in the stored list of hash codes, update the statistics to display a mesage as correctly received
 					if(hash_codes.remove(new String(response))) {
 						stats.updateReceiveCount();
-						System.out.println("Hash code removed from list");
-
 					}
 				}
 			} catch (IOException e) {
@@ -93,16 +104,16 @@ public class Client {
 		}
 	}
 	
-	public int getNumRemainingHashCodes() {
-		return hash_codes.size();
-	}
-	
 	public static void main(String[] args){
-		Client client = new Client("localhost", 5001, 1);
+		if(args.length != 3) {
+			System.out.println("Incorrect number of arguments - 3 required");
+			return;
+		}
+		
+		Client client = new Client(args[0], Integer.parseInt(args[1]), Integer.parseInt(args[2]));
 		client.connect();
 		client.startMessaging();
 		client.listen();
 		
-		System.out.println("Number of hashes that did not receive a response: " + client.getNumRemainingHashCodes());
 	}
 }

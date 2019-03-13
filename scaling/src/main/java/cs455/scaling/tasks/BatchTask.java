@@ -4,11 +4,19 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import cs455.scaling.hash.Hash;
-import cs455.scaling.server.Statistics;
 
+/*
+ * BatchTask is a Task object created when a clients sends a message to the server, and is considered part of a "work unit" that will be 
+ * assigned to  a worker thread by the ThreadPoolManager when a work unit is full or the batch time has expired.
+ * Task workflow:
+ *  - Deregister the client channel
+ *  - Read the message
+ *  - Compute the message hash
+ *  - Respond to the message
+ *  - Reregister the channel
+ */
 public class BatchTask implements Task{
 
 	private SocketChannel client;
@@ -19,13 +27,11 @@ public class BatchTask implements Task{
 	public BatchTask(SelectionKey key, Selector server_selector) {
 		client = (SocketChannel)key.channel();
 		client_id = (int)key.attachment(); 
+		
+		//Deregister the channel to prevent the server selector from continually marking the key as having activity
 		key.cancel();
 		
 		this.server_selector = server_selector;
-		//Take the key and only turn on write interest, preventing duplicate reads
-		//this.key = key;
-		//this.key.interestOps(key.interestOps() & ~SelectionKey.OP_READ);
-		
 		this.hash = new Hash();
 		
 	}
@@ -38,22 +44,20 @@ public class BatchTask implements Task{
 	@Override
 	public void run() {
 		//Read message from client to a buffer
-		//SocketChannel client = (SocketChannel) key.channel();
 		ByteBuffer buffer = ByteBuffer.allocate(8000);
-		System.out.println("\t\t\t\tBatchTask: starting batch task for client " + client_id);
 
 		try {
 			
 			int bytes_read = 0;
 			
+			//Message from the client may not be read all at once, so attempt to read until the buffer is full
 			while(buffer.hasRemaining() && bytes_read != -1) {
-				//System.out.println("\t\t\t\t\tBatchTask: reading bytes...");
 				bytes_read = client.read(buffer);
 			}
 			
 			if(bytes_read == -1) { //Connection has closed
 				client.close();
-				System.out.println("Client disconnected");
+				//System.out.println("Client disconnected");
 			} else {
 				
 				String hash_code = hash.SHA1FromBytes(buffer.array());
@@ -74,24 +78,14 @@ public class BatchTask implements Task{
 				buffer.clear();
 			}
 			
-			//Reset the attachment and interest on the key to continue listening for reads
-			//((AtomicBoolean)key.attachment()).set(false);
-			//key.interestOps(key.interestOps() | SelectionKey.OP_READ);
-			
+			//Reregister the the client with selector and set interest to read
 			synchronized(server_selector) {
 				client.register(server_selector, SelectionKey.OP_READ, client_id);
-				//client.register(server_selector, SelectionKey.OP_READ);
-
 			}
 			
-			System.out.println("\t\t\t\tBatchTask: task completed successfully");
 			return;
 		}catch(Exception e) {
-			//e.printStackTrace();
-			System.out.println("Client connection failure detected, cancelling channel key.");
-			//key.cancel();
+			//System.out.println("Client connection failure detected");
 		}
-		System.out.println("\t\t\t\tBatchTask: task NOT completed successfully");
-
 	}
 }

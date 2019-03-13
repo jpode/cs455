@@ -1,14 +1,20 @@
 package cs455.scaling.tasks;
 
-import java.io.IOException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import cs455.scaling.server.Statistics;
-
+/*
+ * AcceptConnectionTask is a task object that registers an incoming connection with the server, and is considered part of a "work unit" that
+ *  will be assigned to  a worker thread by the ThreadPoolManager when a work unit is full or the batch time has expired.
+ * Task workflow:
+ *  - Acquire locks on the selector and server channel
+ *  - Try to accept the connection into a channel
+ *  - Configure the channel 
+ *  - Register the channel with the server selector
+ */
 public class AcceptConnectionTask implements Task{
 	private Selector selector;
 	private ServerSocketChannel server_channel;
@@ -33,8 +39,7 @@ public class AcceptConnectionTask implements Task{
 		//Acquire mutex locks on selector and server channel objects to avoid race conditions when registering the new connection
 		synchronized(selector){
 			synchronized(server_channel) {
-				System.out.println("\t\t\t\tTask::AcceptConnection: thread running and registering new connection with id " + client_id);
-				//Accept a new client socket, configure blocking mode, and register it for read operations
+				//Accept a new client socket, configure non-blocking mode, and register it for read operations
 				SocketChannel client;
 				try {
 					client = server_channel.accept();

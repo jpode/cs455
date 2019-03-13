@@ -3,10 +3,20 @@ package cs455.scaling.server;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.Iterator;
 
-
 import cs455.scaling.tasks.Task;
-import cs455.scaling.tasks.TestTask;
 
+/*
+ * The ThreadPoolManager (TPM) is responsible for creating, assigning tasks to, and pulling statistics from the thread pool.
+ * The thread pool consists of WorkerThreads, with the pool size determined by the user.
+ * 
+ * TPM workflow:
+ *  - Create the thread pool and statistics tracker 
+ *  - Server will add Tasks to the queue through the execute() method
+ *  - Assign new Tasks to the work queue, either by adding to an existing batch or creating a new one
+ *  - Iterate through the thread pool, pulling statistics from each thread and 
+ *      checking if there is a full batch or if the batch time has expired
+ *  - Assign the batch to an inactive thread
+ */
 public class ThreadPoolManager implements Runnable{
 	private ConcurrentLinkedQueue<WorkerThread> thread_pool;
 	private ConcurrentLinkedQueue<Task[]> work_queue;
@@ -30,7 +40,6 @@ public class ThreadPoolManager implements Runnable{
 		
 		statistics = new ServerStatistics();
 		stats_thread = new Thread(statistics);
-		stats_thread.start();
 	}
 	
 	public void execute(Task task) {
@@ -38,13 +47,11 @@ public class ThreadPoolManager implements Runnable{
 			for(Task[] work_unit : work_queue) {
 				for(int i = 0; i < work_unit.length; i++) {
 					if(work_unit[i] == null) {
-						//System.out.println("\tThreadPoolManager: adding task to work unit " + i);
 						work_unit[i] = task;
 						return;
 					}
 				}
 			}
-			//System.out.println("\tThreadPoolManager: creating new work unit for task");
 			Task[] work_unit = new Task[batch_size];
 			work_unit[0] = task;
 			work_queue.add(work_unit);
@@ -53,6 +60,7 @@ public class ThreadPoolManager implements Runnable{
 
 	@Override
 	public void run() {
+		stats_thread.start();
 		long start_time = System.currentTimeMillis();
 		while(true) {
 			Iterator<WorkerThread> itr = thread_pool.iterator();
@@ -66,7 +74,6 @@ public class ThreadPoolManager implements Runnable{
 					if(!work_queue.isEmpty() && (work_queue.peek()[batch_size - 1] != null || System.currentTimeMillis() - start_time > batch_time * 1000)) {					
 	
 						if(!thread.isActive()) {
-							System.out.println("\tManager: tasks in queue, assigning to inactive thread");
 							thread.performTask(work_queue.poll());
 							start_time = System.currentTimeMillis();
 							break;

@@ -15,21 +15,25 @@ import cs455.scaling.tasks.AcceptConnectionTask;
 import cs455.scaling.tasks.BatchTask;
 
 public class Server {
-	private boolean running;
+	//Server port number
+	private int port;
+	//Runnable object that controls the ThreadPool and assignment of tasks
+	//Requires a thread pool size, batch size, and batch time in seconds specified by the user
 	private ThreadPoolManager manager;
+	//Thread to run the manager object
 	private Thread manager_thread;
-	private int batch_size;
 	
-	public Server(int portnum, int thread_pool_size, int batch_size, int batch_time) {
-		this.batch_size = batch_size;
+	public Server(int port, int thread_pool_size, int batch_size, int batch_time) {
+		this.port = port;
 		manager = new ThreadPoolManager(thread_pool_size, batch_size, batch_time);
 		manager_thread = new Thread(manager);
-		manager_thread.start();
+
 	}
 
-	public void startServer(int port) {
+	public void startServer() {
 		try {
 			System.out.println("Server: configuring...");
+			
 			//Object to attach to keys to prevent re-reading of the same key
 			
 			//Configure server selector and socket channel to listen for new connections
@@ -37,110 +41,86 @@ public class Server {
 			ServerSocketChannel server_channel = ServerSocketChannel.open();
 			
 			server_channel.configureBlocking(false);
-			server_channel.socket().bind(new InetSocketAddress("localhost", port));
+			server_channel.socket().bind(new InetSocketAddress("0.0.0.0", port));
 			
 
 			
 			SelectionKey server_key = server_channel.register(selector,  SelectionKey.OP_ACCEPT);
 			
-			//Attach a boolean object to the key to prevent the server from trying to complete duplicate tasks
+			//Attach a boolean object to the key to prevent the server from trying to complete duplicate AcceptConnectionTasks
 			//When a new connection is received, the boolean is set to true until a worker thread completes the task and sets it back to false
+			//The boolean is not added to the client key, as a new object is assigned to keep track of statistics
 			AtomicBoolean active = new AtomicBoolean();
 			active.set(false);
 			server_key.attach(active);
-
-			running = true;
+			
+			//Start the thread pool manager
+			manager_thread.start();
+			
+			//Declare keys iterator, which will loop through keys with activity
 			Iterator<SelectionKey> keys;
-			System.out.println("Server: configuration done. Listening for connections...");
-			//Server continuously accepts new connections
+			
+			//To keep track of each client's message statistics, an incremented id will be attached to the key object
 			int client_id_counter = 0;
-			while(running) {
+			
+			System.out.println("Server: configuration done. Listening started...");
+			//Server continuously accepts new connections
+			while(true) {
 				
-				//Mutex locks do not need to be acquired for the server_channel and selector objects, as they are only modified in Tasks which acquire the locks
 				if(selector.selectNow() != 0) {
 					
 					//List of keys with activity to handle
 					keys = selector.selectedKeys().iterator();
 					while(keys.hasNext()) {
-						//System.out.println("\t\tDEBUG::Server: num keys returned by select: " + selector.selectedKeys().size());
 	
 						SelectionKey key = keys.next();
-						
-						//System.out.println("\t\tDEBUG::Server: current key:: " + key.toString());
 	
 						if(!key.isValid()) {
 							continue;
 						}
 						
-						if(key.isAcceptable()) {
+						if(key.isAcceptable()) { //Indicates a new client connection that needs to be accepted
 							
+							//Check to see if this client is already trying to connect
 							boolean check = active.get();
 							if(!check) {
-								System.out.println("Server: accepted new client connection");
 								
 								//Set boolean attached to the key to true to prevent the same connection from being established twice
 								active.set(true);
 								manager.execute(new AcceptConnectionTask(key, selector, server_channel, client_id_counter));
+								
 								client_id_counter++;
 	
 							}
-							//this.acceptConnection(selector, server_channel);
 							
-						} else if (key.isReadable()) {
-							//System.out.println("Server: found readable key " + key.toString() + ", key count = " + selector.selectedKeys().size());
-							//this.read(key);
-							
-							//if(!((AtomicBoolean)key.attachment()).get()) {
-								//((AtomicBoolean)key.attachment()).set(true);
-								//System.out.println("Key is not active, creating new task..");
-								//If the key already contains an accepted client and is now readable, attempt to read it
-								//key.interestOps(key.interestOps() & ~SelectionKey.OP_READ);
-								//System.out.println("Server: received new readable message");
-								manager.execute(new BatchTask(key, selector));
-							//}
+						} else if (key.isReadable()) { //Indicates that an existing client has sent a message that needs to be handled
+							manager.execute(new BatchTask(key, selector));
 						}
 						
-						//Remove the key so it does not get checked again 
+						//Remove the key so it does not get checked again in this iteration
 						keys.remove();
 					}
+					//Clear all keys to ensure a new set for the next iteration
 					selector.selectedKeys().clear();
 				}
 			}
 			
-			System.out.println("Server: stopped running");
 			
 		} catch (IOException e) {
-			e.printStackTrace();
+			manager_thread.interrupt();
+			System.out.println("Server: stopped running");
+			return;
 		}
-		
-	}
-
-	private void read(SelectionKey key){
-		//Read message from client to a buffer
-		SocketChannel client = (SocketChannel) key.channel();
-		ByteBuffer buffer = ByteBuffer.allocate(256);
-		try {
-			int bytes_read = client.read(buffer);
-			if(bytes_read == -1) { // Connection has closed
-				client.close();
-				System.out.println("Client disconnected");
-			} else {
-				System.out.println("Server: read " + bytes_read + " bytes, message from buffer: " + new String(buffer.array()).trim());
-				buffer.clear();
-			}
-		}catch(Exception e) {
-			System.out.println("Client connection failure detected, cancelling channel key.");
-			key.cancel();
-		}
-		
-	}
-	
-	private void write(SelectionKey key) {
 		
 	}
 	
 	public static void main(String[] args) {
-		Server server = new Server(5001, 10, 2, 2);
-		server.startServer(5001);
+		if(args.length != 4) {
+			System.out.println("Incorrect number of arguments - 4 required");
+			return;
+		}
+		
+		Server server = new Server(Integer.parseInt(args[0]), Integer.parseInt(args[1]), Integer.parseInt(args[2]), Integer.parseInt(args[3]));
+		server.startServer();
 	}
 }

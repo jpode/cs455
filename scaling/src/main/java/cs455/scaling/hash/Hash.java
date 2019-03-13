@@ -11,6 +11,7 @@ public class Hash {
 		 MessageDigest digest = MessageDigest.getInstance("SHA1");
 		 byte[] hash = digest.digest(data);
 		 BigInteger hashInt = new BigInteger(1, hash);
+		 //Pad the hash with 0's to ensure that every hash is 40 bytes long
 		 return String.format("%040x", hashInt);		 
 	}
 }

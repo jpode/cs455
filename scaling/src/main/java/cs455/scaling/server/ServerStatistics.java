@@ -33,6 +33,8 @@ public class ServerStatistics implements Runnable{
 		date_format = DateTimeFormatter.ofPattern("hh:mm:ss");
 	}
 	 
+	//Takes a list of client ids, which indicate one message sent by that client 
+	//Synchronized with printStatistics to avoid updates during the print process
 	public synchronized void addClientThroughput(Integer[] stat_ids) {
 		if(stat_ids != null) {
 			for(int i = 0; i < stat_ids.length; i++) {
@@ -46,13 +48,14 @@ public class ServerStatistics implements Runnable{
 				}
 				
 				throughput++;
+				
+				//Update the mean throughput 
 				mean_pc_throughput = (throughput / 20) / active_connections;
 			}
 		}
 	}
 	
-
-	
+	//Print out the current server statistics and reset them for the next 20 second cycle
 	private synchronized void printStatistics() {
 		calculateStdDev();
 		
@@ -74,6 +77,7 @@ public class ServerStatistics implements Runnable{
 		mean_pc_throughput = 0;
 	}
 	
+	//Calculate standard deviation of the number of messages sent per second for all clients
 	private void calculateStdDev() {
 		double sum = 0;
 		

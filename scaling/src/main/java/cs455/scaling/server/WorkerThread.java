@@ -5,7 +5,14 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import cs455.scaling.tasks.Task;
-
+/*
+ * WorkerThread is a Thread object that exists in a thread pool managed by the ThreadPoolManager (TPM) class.
+ * WorkerThread workflow:
+ *  - Once started, block and wait for new tasks to be added to the queue by the TPM 
+ *  - Run the Task by invoking its run() method
+ *  - If completed successfully, add the client id associated with the task to the list of processed clients
+ *  - When requested, provide the list of clients with processed messages and then clear the list
+ */
 public class WorkerThread extends Thread{
 	private AtomicBoolean active;
 	private LinkedBlockingQueue<Task> tasks;
@@ -29,8 +36,6 @@ public class WorkerThread extends Thread{
 				debug_counter++;
 			}
 		}
-		
-		//System.out.println("\t\tWorkerThread: added " + debug_counter + " tasks to queue ");
 	}
 
 	public synchronized Integer[] pullStats() {
@@ -48,13 +53,10 @@ public class WorkerThread extends Thread{
 	public void run() {
 		while(true) {
 			try {
-				//System.out.println("Thread " + Thread.currentThread().getName() + " waiting for task...");
 				Task task = tasks.take();
 				active.set(true);
-				//System.out.println("\t\tThread " + Thread.currentThread().getName() + " active, " + tasks.size() + " tasks remaining in queue");
 				task.run();
 				addClientToStats(task.getId());
-				//System.out.println("\t\tThread " + Thread.currentThread().getName() + " finished given task");
 				active.set(false);
 	
 			} catch (InterruptedException e) {

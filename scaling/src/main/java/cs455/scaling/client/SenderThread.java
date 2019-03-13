@@ -9,6 +9,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import cs455.scaling.hash.Hash;
 
+//SenderThread is a separate execution thread that continuously sends messages to the server at the specified rate, and 
+// keeps track of the sent messages by adding their hash to a linked list
 public class SenderThread implements Runnable {
 	private long message_rate;
 	private SocketChannel client;
@@ -33,25 +35,28 @@ public class SenderThread implements Runnable {
 
 	@Override
 	public void run() {
+		//Continuously send messages to the server at the specified rate 
 		System.out.println("Messsage sender thread started");
-		int debug_counter = 0;
-		while(debug_counter < 10) {
+		while(true) {
 			try {
 				Thread.currentThread().sleep(1000 / message_rate);
-				//Thread.currentThread().sleep(3000);
+				
+				//Generate 8KB of random data
 				byte[] data = generateMessage();
-				//System.out.println("Attempting to send new message with hash code: " + hash.SHA1FromBytes(data));
 
+				//Compute the hash of the data
 				hash_codes.add(hash.SHA1FromBytes(data));
+				
+				//Attempt to write, which may take multiple attempts
 				ByteBuffer buffer = ByteBuffer.wrap(data);
 				
 				while(buffer.hasRemaining()) {
 					client.write(buffer);
 				}
 				
+				//Update the number of messages sent
 				stats.updateSendCount();
 				
-				debug_counter++;
 			} catch (IOException | NoSuchAlgorithmException e) {
 				return;
 			} catch (InterruptedException e) {
